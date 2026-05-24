@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
+import type { Database } from '../../supabase/database.types';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto/vehicle.dto';
+
+type VehicleUpdate = Database['public']['Tables']['vehicles']['Update'];
 
 function normalizePlate(plate: string): string {
   return plate.trim().toUpperCase().replace(/\s+/g, ' ');
@@ -278,7 +281,7 @@ export class VehiclesService {
       throw new ForbiddenException('Bu aracı güncelleme yetkiniz yok');
     }
 
-    const payload: Record<string, unknown> = {};
+    const payload: VehicleUpdate = {};
     if (dto.brand !== undefined) payload.brand = dto.brand;
     if (dto.model !== undefined) payload.model = dto.model;
     if (dto.year !== undefined) payload.year = dto.year;

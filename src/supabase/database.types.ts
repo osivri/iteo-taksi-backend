@@ -50,7 +50,58 @@ export type Database = {
       notifications: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown>; Relationships: [] };
       ohs_contents: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown>; Relationships: [] };
       payments: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown>; Relationships: [] };
-      vehicles: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown>; Relationships: [] };
+      vehicles: {
+        Row: {
+          id: string;
+          plate_number: string;
+          brand: string | null;
+          model: string | null;
+          year: number | null;
+          owner_id: string;
+          active_driver_id: string | null;
+          status: Database['public']['Enums']['vehicle_status'];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          plate_number: string;
+          brand?: string | null;
+          model?: string | null;
+          year?: number | null;
+          owner_id: string;
+          active_driver_id?: string | null;
+          status?: Database['public']['Enums']['vehicle_status'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['vehicles']['Insert']>;
+        Relationships: [];
+      };
+      driver_plate_requests: {
+        Row: {
+          id: string;
+          driver_id: string;
+          owner_id: string;
+          vehicle_id: string;
+          plate_number: string;
+          status: Database['public']['Enums']['plate_request_status'];
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          driver_id: string;
+          owner_id: string;
+          vehicle_id: string;
+          plate_number: string;
+          status?: Database['public']['Enums']['plate_request_status'];
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['driver_plate_requests']['Insert']>;
+        Relationships: [];
+      };
       push_tokens: {
         Row: {
           id: string;
@@ -78,6 +129,7 @@ export type Database = {
       user_role: 'USER' | 'DRIVER' | 'PLATE_OWNER' | 'ADMIN' | 'SUPER_ADMIN';
       user_status: 'ACTIVE' | 'PASSIVE' | 'PENDING_VERIFICATION';
       vehicle_status: 'ACTIVE' | 'PASSIVE';
+      plate_request_status: 'PENDING' | 'APPROVED' | 'REJECTED';
       finance_type: 'INCOME' | 'EXPENSE';
       announcement_priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
       payment_type: 'DUES' | 'APP_FEE' | 'SERVICE_FEE' | 'OTHER';
