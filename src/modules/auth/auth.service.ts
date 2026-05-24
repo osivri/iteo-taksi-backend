@@ -7,6 +7,8 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { MemberLoginDto } from './dto/member-login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -53,6 +55,68 @@ export class AuthService {
       refreshToken: data.session.refresh_token,
       expiresAt: data.session.expires_at,
       user: profile,
+    };
+  }
+
+  async memberLogin(dto: MemberLoginDto) {
+    const { data, error } = await this.supabase.anon.auth.signInWithPassword({
+      email: dto.email,
+      password: dto.password,
+    });
+
+    if (error || !data.session || !data.user) {
+      throw new UnauthorizedException(error?.message ?? 'Giriş başarısız');
+    }
+
+    const profile = await this.getProfile(data.user.id);
+
+    if (['ADMIN', 'SUPER_ADMIN'].includes(profile.role)) {
+      await this.supabase.anon.auth.signOut();
+      throw new UnauthorizedException(
+        'Yönetici hesapları üye panelinden giriş yapamaz. Lütfen yönetim girişini kullanın.',
+      );
+    }
+
+    return {
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      expiresAt: data.session.expires_at,
+      user: profile,
+    };
+  }
+
+  async memberRegister(dto: RegisterDto) {
+    const { data, error } = await this.supabase.anon.auth.signUp({
+      email: dto.email,
+      password: dto.password,
+      options: {
+        data: { intended_role: dto.intendedRole ?? 'USER' },
+      },
+    });
+
+    if (error) {
+      throw new BadRequestException(error.message);
+    }
+
+    if (!data.user) {
+      throw new BadRequestException('Kayıt oluşturulamadı');
+    }
+
+    if (data.session) {
+      const profile = await this.getProfile(data.user.id);
+      return {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresAt: data.session.expires_at,
+        user: profile,
+        requiresEmailConfirmation: false,
+      };
+    }
+
+    return {
+      requiresEmailConfirmation: true,
+      message:
+        'Kayıt oluşturuldu. E-posta doğrulama linki gönderildiyse gelen kutunuzu kontrol edin.',
     };
   }
 

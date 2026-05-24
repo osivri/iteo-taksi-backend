@@ -4,6 +4,8 @@ import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { MemberLoginDto } from './dto/member-login.dto';
+import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -15,22 +17,36 @@ import { mapProfile } from '../../common/interfaces/auth-user.interface';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('login')
+  @ApiOperation({ summary: 'Üye e-posta/şifre girişi' })
+  async memberLogin(@Body() dto: MemberLoginDto) {
+    const data = await this.authService.memberLogin(dto);
+    return { success: true, data, message: 'Giriş başarılı' };
+  }
+
+  @Post('register')
+  @ApiOperation({ summary: 'Üye kayıt' })
+  async memberRegister(@Body() dto: RegisterDto) {
+    const data = await this.authService.memberRegister(dto);
+    return { success: true, data, message: 'Kayıt başarılı' };
+  }
+
   @Post('request-otp')
-  @ApiOperation({ summary: 'Supabase telefon OTP iste' })
+  @ApiOperation({ summary: 'Telefon OTP iste' })
   async requestOtp(@Body() dto: RequestOtpDto) {
     const data = await this.authService.requestOtp(dto);
     return { success: true, data };
   }
 
   @Post('verify-otp')
-  @ApiOperation({ summary: 'Supabase OTP doğrula' })
+  @ApiOperation({ summary: 'Telefon OTP doğrula' })
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     const data = await this.authService.verifyOtp(dto);
     return { success: true, data, message: 'Giriş başarılı' };
   }
 
   @Post('admin/login')
-  @ApiOperation({ summary: 'Admin e-posta/şifre girişi (Supabase Auth)' })
+  @ApiOperation({ summary: 'Admin e-posta/şifre girişi' })
   async adminLogin(@Body() dto: AdminLoginDto) {
     const data = await this.authService.adminLogin(dto);
     return { success: true, data, message: 'Giriş başarılı' };
