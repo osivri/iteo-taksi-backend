@@ -24,6 +24,9 @@ export interface ProfileResponse {
   status: UserStatus;
   profileImageUrl: string | null;
   kvkkAcceptedAt: string | null;
+  city: string | null;
+  district: string | null;
+  addressLine: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,6 +44,9 @@ export function mapProfile(row: ProfileRow): ProfileResponse {
     status: row.status,
     profileImageUrl: row.profile_image_url,
     kvkkAcceptedAt: row.kvkk_accepted_at ?? null,
+    city: row.city ?? null,
+    district: row.district ?? null,
+    addressLine: row.address_line ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

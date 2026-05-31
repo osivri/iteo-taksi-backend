@@ -35,6 +35,9 @@ export class UsersService {
     if (dto.nationalId !== undefined) payload.national_id = dto.nationalId;
     if (dto.memberNo !== undefined) payload.member_no = dto.memberNo;
     if (dto.profileImageUrl !== undefined) payload.profile_image_url = dto.profileImageUrl;
+    if (dto.city !== undefined) payload.city = dto.city;
+    if (dto.district !== undefined) payload.district = dto.district;
+    if (dto.addressLine !== undefined) payload.address_line = dto.addressLine;
 
     const client = this.supabase.createUserClient(user.accessToken);
     const { data, error } = await client
@@ -59,6 +62,9 @@ export class UsersService {
       role: dto.role,
       status: 'ACTIVE' as const,
       email: user.email ?? user.profile.email,
+      city: dto.city.trim(),
+      district: dto.district.trim(),
+      address_line: dto.addressLine.trim(),
     };
 
     const { data: updated, error: updateError } = await client

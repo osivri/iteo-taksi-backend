@@ -22,6 +22,9 @@ export type Database = {
           status: Database['public']['Enums']['user_status'];
           profile_image_url: string | null;
           kvkk_accepted_at: string | null;
+          city: string | null;
+          district: string | null;
+          address_line: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -37,6 +40,9 @@ export type Database = {
           status?: Database['public']['Enums']['user_status'];
           profile_image_url?: string | null;
           kvkk_accepted_at?: string | null;
+          city?: string | null;
+          district?: string | null;
+          address_line?: string | null;
           created_at?: string;
           updated_at?: string;
         };

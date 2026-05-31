@@ -45,6 +45,24 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsString()
   profileImageUrl?: string;
+
+  @ApiPropertyOptional({ example: 'İstanbul' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  city?: string;
+
+  @ApiPropertyOptional({ example: 'Kadıköy' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  district?: string;
+
+  @ApiPropertyOptional({ example: 'Caferağa Mah. Moda Cad. No:12 D:4' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  addressLine?: string;
 }
 
 export class AdminUpdateUserDto {

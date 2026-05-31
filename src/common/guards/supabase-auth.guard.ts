@@ -22,6 +22,9 @@ function stubProfile(userId: string, email: string | null, role: UserRole): Prof
     status: 'PENDING_VERIFICATION',
     profile_image_url: null,
     kvkk_accepted_at: null,
+    city: null,
+    district: null,
+    address_line: null,
     created_at: now,
     updated_at: now,
   };

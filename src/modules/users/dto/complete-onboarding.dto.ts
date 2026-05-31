@@ -15,4 +15,19 @@ export class CompleteOnboardingDto {
   @ApiProperty({ enum: ['USER', 'DRIVER', 'PLATE_OWNER'] })
   @IsEnum(['USER', 'DRIVER', 'PLATE_OWNER'])
   role!: 'USER' | 'DRIVER' | 'PLATE_OWNER';
+
+  @ApiProperty({ example: 'İstanbul' })
+  @IsString()
+  @MaxLength(100)
+  city!: string;
+
+  @ApiProperty({ example: 'Kadıköy' })
+  @IsString()
+  @MaxLength(100)
+  district!: string;
+
+  @ApiProperty({ example: 'Caferağa Mah. Moda Cad. No:12 D:4' })
+  @IsString()
+  @MaxLength(500)
+  addressLine!: string;
 }
