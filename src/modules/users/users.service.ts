@@ -53,23 +53,61 @@ export class UsersService {
 
   async completeOnboarding(user: AuthUser, dto: CompleteOnboardingDto) {
     const client = this.supabase.createUserClient(user.accessToken);
-    const { data, error } = await client
+    const payload = {
+      first_name: dto.firstName,
+      last_name: dto.lastName,
+      role: dto.role,
+      status: 'ACTIVE' as const,
+      email: user.email ?? user.profile.email,
+    };
+
+    const { data: updated, error: updateError } = await client
       .from('profiles')
-      .update({
-        first_name: dto.firstName,
-        last_name: dto.lastName,
-        role: dto.role,
-        status: 'ACTIVE',
-      })
+      .update(payload)
       .eq('id', user.id)
+      .select('*')
+      .maybeSingle();
+
+    if (updated) {
+      return mapProfile(updated);
+    }
+
+    const { data: inserted, error: insertError } = await client
+      .from('profiles')
+      .insert({
+        id: user.id,
+        ...payload,
+      })
       .select('*')
       .single();
 
-    if (error || !data) {
+    if (inserted) {
+      return mapProfile(inserted);
+    }
+
+    if (this.supabase.hasServiceRole()) {
+      const { data, error } = await this.supabase.admin
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            ...payload,
+          },
+          { onConflict: 'id' },
+        )
+        .select('*')
+        .single();
+
+      if (data) {
+        return mapProfile(data);
+      }
+
       throw new BadRequestException(error?.message ?? 'Profil tamamlanamadı');
     }
 
-    return mapProfile(data);
+    throw new BadRequestException(
+      updateError?.message ?? insertError?.message ?? 'Profil tamamlanamadı',
+    );
   }
 
   async registerPushToken(user: AuthUser, dto: RegisterPushTokenDto) {

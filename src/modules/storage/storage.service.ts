@@ -6,7 +6,7 @@ import {
 import { randomUUID } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 
-const ALLOWED_BUCKETS = ['receipts', 'profile-images', 'content-images'] as const;
+const ALLOWED_BUCKETS = ['receipts', 'profile-images', 'content-images', 'forgotten-items'] as const;
 type StorageBucket = (typeof ALLOWED_BUCKETS)[number];
 
 const MIME_TO_EXT: Record<string, string> = {

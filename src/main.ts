@@ -38,10 +38,11 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, document);
 
   const port = configService.get<number>('PORT', 3001);
-  await app.listen(port);
+  const host = configService.get<string>('HOST', '0.0.0.0');
+  await app.listen(port, host);
 
-  console.log(`İTEO API running on http://localhost:${port}/${apiPrefix}`);
-  console.log(`Swagger docs: http://localhost:${port}/docs`);
+  console.log(`İTEO API running on http://${host}:${port}/${apiPrefix}`);
+  console.log(`Swagger docs: http://${host}:${port}/docs`);
 }
 
 bootstrap();

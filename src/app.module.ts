@@ -15,6 +15,7 @@ import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PushModule } from './modules/push/push.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
+import { ForgottenItemsModule } from './modules/forgotten-items/forgotten-items.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.
     NotificationsModule,
     PushModule,
     AdminDashboardModule,
+    ForgottenItemsModule,
   ],
 })
 export class AppModule {}

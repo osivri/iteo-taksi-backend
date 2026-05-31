@@ -86,6 +86,7 @@ export type Database = {
           vehicle_id: string;
           plate_number: string;
           status: Database['public']['Enums']['plate_request_status'];
+          initiated_by: Database['public']['Enums']['plate_request_initiator'];
           created_at: string;
           updated_at: string;
         };
@@ -96,10 +97,39 @@ export type Database = {
           vehicle_id: string;
           plate_number: string;
           status?: Database['public']['Enums']['plate_request_status'];
+          initiated_by?: Database['public']['Enums']['plate_request_initiator'];
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['driver_plate_requests']['Insert']>;
+        Relationships: [];
+      };
+      forgotten_items: {
+        Row: {
+          id: string;
+          reporter_id: string;
+          vehicle_id: string | null;
+          plate_number: string;
+          description: string;
+          photo_path: string;
+          status: Database['public']['Enums']['forgotten_item_status'];
+          admin_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          reporter_id: string;
+          vehicle_id?: string | null;
+          plate_number: string;
+          description?: string;
+          photo_path: string;
+          status?: Database['public']['Enums']['forgotten_item_status'];
+          admin_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['forgotten_items']['Insert']>;
         Relationships: [];
       };
       push_tokens: {
@@ -130,6 +160,8 @@ export type Database = {
       user_status: 'ACTIVE' | 'PASSIVE' | 'PENDING_VERIFICATION';
       vehicle_status: 'ACTIVE' | 'PASSIVE';
       plate_request_status: 'PENDING' | 'APPROVED' | 'REJECTED';
+      plate_request_initiator: 'DRIVER' | 'OWNER';
+      forgotten_item_status: 'PENDING' | 'REVIEWING' | 'RETURNED' | 'CLOSED';
       finance_type: 'INCOME' | 'EXPENSE';
       announcement_priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT';
       payment_type: 'DUES' | 'APP_FEE' | 'SERVICE_FEE' | 'OTHER';

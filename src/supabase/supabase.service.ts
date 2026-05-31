@@ -8,6 +8,7 @@ export class SupabaseService implements OnModuleInit {
   private readonly logger = new Logger(SupabaseService.name);
   private adminClient!: SupabaseClient<Database>;
   private anonClient!: SupabaseClient<Database>;
+  private serviceRoleConfigured = false;
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -18,6 +19,15 @@ export class SupabaseService implements OnModuleInit {
     );
     const anonKey = this.configService.getOrThrow<string>('SUPABASE_ANON_KEY');
 
+    this.serviceRoleConfigured = this.isValidServiceRoleKey(serviceRoleKey);
+
+    if (!this.serviceRoleConfigured) {
+      this.logger.warn(
+        'SUPABASE_SERVICE_ROLE_KEY yapılandırılmamış. Admin işlemleri (bildirim, marketplace vb.) kısıtlı çalışır. ' +
+          'Supabase Dashboard > Settings > API > service_role anahtarını taksi_backend/.env dosyasına ekleyin.',
+      );
+    }
+
     this.adminClient = createClient<Database>(url, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -26,7 +36,9 @@ export class SupabaseService implements OnModuleInit {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    void this.ensureStorageBuckets();
+    if (this.serviceRoleConfigured) {
+      void this.ensureStorageBuckets();
+    }
   }
 
   get admin(): SupabaseClient<Database> {
@@ -35,6 +47,15 @@ export class SupabaseService implements OnModuleInit {
 
   get anon(): SupabaseClient<Database> {
     return this.anonClient;
+  }
+
+  hasServiceRole(): boolean {
+    return this.serviceRoleConfigured;
+  }
+
+  private isValidServiceRoleKey(key: string): boolean {
+    if (!key || key.includes('your-service-role-key')) return false;
+    return key.startsWith('eyJ') || key.startsWith('sb_secret_');
   }
 
   createUserClient(accessToken: string): SupabaseClient<Database> {
@@ -52,6 +73,7 @@ export class SupabaseService implements OnModuleInit {
       { id: 'receipts', public: false },
       { id: 'profile-images', public: true },
       { id: 'content-images', public: true },
+      { id: 'forgotten-items', public: false },
     ] as const;
 
     for (const bucket of buckets) {
