@@ -1,11 +1,38 @@
-import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { FinanceRecordsQueryDto, FinanceSummaryQueryDto } from './dto/finance.dto';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import type { AuthUser } from '../../common/interfaces/auth-user.interface';
+import {
+  CreateExpenseCategoryDto,
+  FinanceRecordsQueryDto,
+  FinanceSummaryQueryDto,
+  UpdateExpenseCategoryDto,
+} from './dto/finance.dto';
+import { IsEnum, IsOptional } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+
+class ExpenseCategoriesQueryDto {
+  @ApiPropertyOptional({ enum: ['INCOME', 'EXPENSE'] })
+  @IsOptional()
+  @IsEnum(['INCOME', 'EXPENSE'])
+  type?: 'INCOME' | 'EXPENSE';
+}
 
 @ApiTags('Admin - Finance')
 @ApiBearerAuth()
@@ -58,5 +85,40 @@ export class AdminFinanceController {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="iteo-finance-export.csv"');
     res.send(`\uFEFF${csv}`);
+  }
+
+  @Get('categories')
+  @ApiOperation({ summary: 'Gelir/gider kategorileri' })
+  async listCategories(@Query() query: ExpenseCategoriesQueryDto) {
+    const data = await this.financeService.adminListExpenseCategories(query.type);
+    return { success: true, data };
+  }
+
+  @Post('categories')
+  @ApiOperation({ summary: 'Gelir/gider kategorisi oluştur' })
+  async createCategory(
+    @CurrentUser() admin: AuthUser,
+    @Body() dto: CreateExpenseCategoryDto,
+  ) {
+    const data = await this.financeService.adminCreateExpenseCategory(admin.id, dto);
+    return { success: true, data, message: 'Kategori oluşturuldu' };
+  }
+
+  @Patch('categories/:id')
+  @ApiOperation({ summary: 'Gelir/gider kategorisi güncelle' })
+  async updateCategory(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateExpenseCategoryDto,
+  ) {
+    const data = await this.financeService.adminUpdateExpenseCategory(admin.id, id, dto);
+    return { success: true, data, message: 'Kategori güncellendi' };
+  }
+
+  @Delete('categories/:id')
+  @ApiOperation({ summary: 'Gelir/gider kategorisi sil' })
+  async deleteCategory(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
+    const data = await this.financeService.adminDeleteExpenseCategory(admin.id, id);
+    return { success: true, data, message: 'Kategori silindi' };
   }
 }

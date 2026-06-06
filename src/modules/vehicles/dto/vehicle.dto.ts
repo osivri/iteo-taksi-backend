@@ -1,4 +1,5 @@
 import {
+  IsDateString,
   IsEnum,
   IsInt,
   IsOptional,
@@ -30,6 +31,26 @@ export class CreateVehicleDto {
   @IsInt()
   @Min(1980)
   year?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  standId?: string;
+
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @IsOptional()
+  @IsDateString()
+  inspectionExpiry?: string;
+
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @IsOptional()
+  @IsDateString()
+  insuranceExpiry?: string;
+
+  @ApiPropertyOptional({ example: '2026-12-31' })
+  @IsOptional()
+  @IsDateString()
+  licenseExpiry?: string;
 }
 
 export class UpdateVehicleDto {
@@ -57,4 +78,24 @@ export class UpdateVehicleDto {
   @IsOptional()
   @IsUUID()
   activeDriverId?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  standId?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  inspectionExpiry?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  insuranceExpiry?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  licenseExpiry?: string | null;
 }

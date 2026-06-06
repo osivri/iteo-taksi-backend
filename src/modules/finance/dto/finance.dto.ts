@@ -1,10 +1,13 @@
 import {
+  IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUUID,
+  MaxLength,
   Min,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -95,6 +98,52 @@ export class UpdateFinanceRecordDto {
   @IsOptional()
   @IsString()
   receiptImageUrl?: string;
+}
+
+export class CreateExpenseCategoryDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(100)
+  name!: string;
+
+  @ApiProperty({ enum: ['INCOME', 'EXPENSE'] })
+  @IsEnum(['INCOME', 'EXPENSE'])
+  type!: 'INCOME' | 'EXPENSE';
+
+  @ApiPropertyOptional({ default: true })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional({ default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  sortOrder?: number;
+}
+
+export class UpdateExpenseCategoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  name?: string;
+
+  @ApiPropertyOptional({ enum: ['INCOME', 'EXPENSE'] })
+  @IsOptional()
+  @IsEnum(['INCOME', 'EXPENSE'])
+  type?: 'INCOME' | 'EXPENSE';
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  sortOrder?: number;
 }
 
 export class FinanceSummaryQueryDto {

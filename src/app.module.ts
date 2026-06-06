@@ -16,6 +16,14 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { PushModule } from './modules/push/push.module';
 import { AdminDashboardModule } from './modules/admin-dashboard/admin-dashboard.module';
 import { ForgottenItemsModule } from './modules/forgotten-items/forgotten-items.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { ServiceRequestsModule } from './modules/service-requests/service-requests.module';
+import { StandsModule } from './modules/stands/stands.module';
+import { ListingsModule } from './modules/listings/listings.module';
+import { RatingsModule } from './modules/ratings/ratings.module';
+import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
+import { StaffExpensesModule } from './modules/staff-expenses/staff-expenses.module';
+import { RemindersModule } from './modules/reminders/reminders.module';
 
 @Module({
   imports: [
@@ -36,6 +44,14 @@ import { ForgottenItemsModule } from './modules/forgotten-items/forgotten-items.
     PushModule,
     AdminDashboardModule,
     ForgottenItemsModule,
+    AuditModule,
+    ServiceRequestsModule,
+    StandsModule,
+    ListingsModule,
+    RatingsModule,
+    SparePartsModule,
+    StaffExpensesModule,
+    RemindersModule,
   ],
 })
 export class AppModule {}

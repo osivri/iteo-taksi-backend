@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AnnouncementsService } from './announcements.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -30,5 +30,12 @@ export class AnnouncementsController {
   async getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     const data = await this.announcementsService.getPublic(user, id);
     return { success: true, data };
+  }
+
+  @Patch(':id/read')
+  @ApiOperation({ summary: 'Duyuruyu okundu işaretle' })
+  async markAsRead(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.announcementsService.markAsRead(user, id);
+    return { success: true, data, message: 'Okundu olarak işaretlendi' };
   }
 }

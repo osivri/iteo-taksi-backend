@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsBoolean,
   IsEnum,
   IsOptional,
@@ -7,6 +8,9 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto';
+
+export const TARGET_ROLES = ['USER', 'DRIVER', 'PLATE_OWNER', 'ADMIN', 'SUPER_ADMIN'] as const;
+export type TargetRole = (typeof TARGET_ROLES)[number];
 
 export class AnnouncementsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional()
@@ -52,6 +56,16 @@ export class CreateAnnouncementDto {
   @IsOptional()
   @IsDateString()
   publishedAt?: string;
+
+  @ApiPropertyOptional({
+    enum: TARGET_ROLES,
+    isArray: true,
+    description: 'Boş bırakılırsa tüm rollere gösterilir',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(TARGET_ROLES, { each: true })
+  targetRoles?: TargetRole[];
 }
 
 export class UpdateAnnouncementDto {
@@ -94,4 +108,10 @@ export class UpdateAnnouncementDto {
   @IsOptional()
   @IsDateString()
   publishedAt?: string;
+
+  @ApiPropertyOptional({ enum: TARGET_ROLES, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsEnum(TARGET_ROLES, { each: true })
+  targetRoles?: TargetRole[];
 }

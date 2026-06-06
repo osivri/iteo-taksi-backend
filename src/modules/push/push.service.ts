@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { SupabaseService } from '../../supabase/supabase.service';
+import type { UserRole } from '../../common/interfaces/auth-user.interface';
 
 interface ExpoPushMessage {
   to: string;
@@ -28,6 +29,36 @@ export class PushService {
     if (error) {
       this.logger.warn(`Push token kaydı başarısız: ${error.message}`);
     }
+  }
+
+  async sendToRoles(roles: string[], title: string, body: string, data?: Record<string, string>) {
+    if (!roles.length) return { sent: 0 };
+
+    const { data: users, error: usersError } = await this.supabase.admin
+      .from('profiles')
+      .select('id')
+      .in('role', roles as UserRole[])
+      .eq('status', 'ACTIVE');
+
+    if (usersError || !users?.length) {
+      return { sent: 0 };
+    }
+
+    const userIds = users.map((u) => u.id);
+    const { data: rows, error } = await this.supabase.admin
+      .from('push_tokens')
+      .select('token')
+      .in('user_id', userIds);
+
+    if (error) {
+      this.logger.warn(`Push token listesi alınamadı: ${error.message}`);
+      return { sent: 0 };
+    }
+
+    const tokens = (rows ?? []).map((r) => r.token as string).filter(Boolean);
+    if (!tokens.length) return { sent: 0 };
+
+    return this.sendExpoPush(tokens.map((to) => ({ to, title, body, data })));
   }
 
   async sendToActiveUsers(title: string, body: string, data?: Record<string, string>) {

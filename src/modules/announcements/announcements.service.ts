@@ -7,13 +7,14 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import {
   CreateAnnouncementDto,
+  TargetRole,
   UpdateAnnouncementDto,
 } from './dto/announcement.dto';
 import { getPagination } from '../../common/dto/pagination-query.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PushService } from '../push/push.service';
 
-function mapAnnouncement(row: Record<string, unknown>) {
+function mapAnnouncement(row: Record<string, unknown>, isRead?: boolean) {
   return {
     id: row.id as string,
     title: row.title as string,
@@ -23,10 +24,17 @@ function mapAnnouncement(row: Record<string, unknown>) {
     coverImageUrl: row.cover_image_url as string | null,
     isPublished: row.is_published as boolean,
     sendPush: row.send_push as boolean,
+    targetRoles: (row.target_roles as string[] | null) ?? [],
+    isRead: isRead ?? false,
     publishedAt: row.published_at as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   };
+}
+
+function matchesTargetRole(targetRoles: string[] | null | undefined, role: string) {
+  if (!targetRoles?.length) return true;
+  return targetRoles.includes(role);
 }
 
 @Injectable()
@@ -53,9 +61,18 @@ export class AnnouncementsService {
     const { data, error, count } = await query;
     if (error) throw new BadRequestException(error.message);
 
+    const filtered = (data ?? []).filter((row) =>
+      matchesTargetRole(row.target_roles as string[] | null, user.role),
+    );
+
+    const ids = filtered.map((row) => row.id as string);
+    const readSet = await this.getReadAnnouncementIds(user, ids);
+
     return {
-      items: (data ?? []).map(mapAnnouncement),
-      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+      items: filtered.map((row) =>
+        mapAnnouncement(row, readSet.has(row.id as string)),
+      ),
+      meta: { page: safePage, limit: safeLimit, total: count ?? filtered.length },
     };
   }
 
@@ -69,7 +86,29 @@ export class AnnouncementsService {
       .single();
 
     if (error || !data) throw new NotFoundException('Duyuru bulunamadı');
-    return mapAnnouncement(data);
+    if (!matchesTargetRole(data.target_roles as string[] | null, user.role)) {
+      throw new NotFoundException('Duyuru bulunamadı');
+    }
+
+    const readSet = await this.getReadAnnouncementIds(user, [id]);
+    return mapAnnouncement(data, readSet.has(id));
+  }
+
+  async markAsRead(user: AuthUser, id: string) {
+    const announcement = await this.getPublic(user, id);
+    const client = this.supabase.createUserClient(user.accessToken);
+
+    const { error } = await client.from('announcement_reads').upsert(
+      {
+        announcement_id: id,
+        user_id: user.id,
+        read_at: new Date().toISOString(),
+      },
+      { onConflict: 'announcement_id,user_id' },
+    );
+
+    if (error) throw new BadRequestException(error.message);
+    return { ...announcement, isRead: true };
   }
 
   async adminList(page = 1, limit = 20) {
@@ -84,7 +123,7 @@ export class AnnouncementsService {
     if (error) throw new BadRequestException(error.message);
 
     return {
-      items: (data ?? []).map(mapAnnouncement),
+      items: (data ?? []).map((row) => mapAnnouncement(row)),
       meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
     };
   }
@@ -100,6 +139,7 @@ export class AnnouncementsService {
         cover_image_url: dto.coverImageUrl,
         is_published: dto.isPublished ?? false,
         send_push: dto.sendPush ?? false,
+        target_roles: dto.targetRoles?.length ? dto.targetRoles : null,
         published_at: dto.isPublished ? (dto.publishedAt ?? new Date().toISOString()) : dto.publishedAt,
       })
       .select('*')
@@ -109,12 +149,7 @@ export class AnnouncementsService {
     const announcement = mapAnnouncement(data);
 
     if (announcement.isPublished && (dto.sendPush ?? announcement.sendPush)) {
-      const preview = announcement.content.slice(0, 180);
-      await this.notificationsService.sendBroadcast(announcement.title, preview, 'ANNOUNCEMENT');
-      await this.pushService.sendToActiveUsers(announcement.title, preview, {
-        type: 'ANNOUNCEMENT',
-        id: announcement.id,
-      });
+      await this.dispatchAnnouncementNotifications(announcement, dto.targetRoles);
     }
 
     return announcement;
@@ -135,6 +170,9 @@ export class AnnouncementsService {
     }
     if (dto.sendPush !== undefined) payload.send_push = dto.sendPush;
     if (dto.publishedAt !== undefined) payload.published_at = dto.publishedAt;
+    if (dto.targetRoles !== undefined) {
+      payload.target_roles = dto.targetRoles.length ? dto.targetRoles : null;
+    }
 
     const { data, error } = await this.supabase.admin
       .from('announcements')
@@ -147,12 +185,10 @@ export class AnnouncementsService {
     const announcement = mapAnnouncement(data);
 
     if (dto.sendPush && announcement.isPublished) {
-      const preview = announcement.content.slice(0, 180);
-      await this.notificationsService.sendBroadcast(announcement.title, preview, 'ANNOUNCEMENT');
-      await this.pushService.sendToActiveUsers(announcement.title, preview, {
-        type: 'ANNOUNCEMENT',
-        id: announcement.id,
-      });
+      await this.dispatchAnnouncementNotifications(
+        announcement,
+        dto.targetRoles ?? (announcement.targetRoles as TargetRole[]),
+      );
     }
 
     return announcement;
@@ -162,5 +198,62 @@ export class AnnouncementsService {
     const { error } = await this.supabase.admin.from('announcements').delete().eq('id', id);
     if (error) throw new BadRequestException(error.message);
     return { deleted: true };
+  }
+
+  private async getReadAnnouncementIds(user: AuthUser, announcementIds: string[]) {
+    const readSet = new Set<string>();
+    if (!announcementIds.length) return readSet;
+
+    const client = this.supabase.createUserClient(user.accessToken);
+    const { data } = await client
+      .from('announcement_reads')
+      .select('announcement_id')
+      .eq('user_id', user.id)
+      .in('announcement_id', announcementIds);
+
+    for (const row of data ?? []) {
+      readSet.add(row.announcement_id as string);
+    }
+    return readSet;
+  }
+
+  private async dispatchAnnouncementNotifications(
+    announcement: ReturnType<typeof mapAnnouncement>,
+    targetRoles?: TargetRole[],
+  ) {
+    const preview = announcement.content.slice(0, 180);
+    const roles = targetRoles?.length ? targetRoles : undefined;
+
+    if (roles?.length) {
+      const { data: users, error } = await this.supabase.admin
+        .from('profiles')
+        .select('id')
+        .in('role', roles)
+        .eq('status', 'ACTIVE');
+
+      if (error) throw new BadRequestException(error.message);
+      if (users?.length) {
+        await this.supabase.admin.from('notifications').insert(
+          users.map((u) => ({
+            user_id: u.id,
+            title: announcement.title,
+            body: preview,
+            type: 'ANNOUNCEMENT',
+          })),
+        );
+      }
+
+      await this.pushService.sendToRoles(roles, announcement.title, preview, {
+        type: 'ANNOUNCEMENT',
+        id: announcement.id,
+      });
+      return;
+    }
+
+    await this.notificationsService.sendBroadcast(announcement.title, preview, 'ANNOUNCEMENT');
+    await this.pushService.sendToActiveUsers(announcement.title, preview, {
+      type: 'ANNOUNCEMENT',
+      id: announcement.id,
+    });
   }
 }

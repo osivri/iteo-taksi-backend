@@ -24,6 +24,10 @@ function mapVehicle(row: Record<string, unknown>) {
     year: row.year as number | null,
     ownerId: row.owner_id as string,
     activeDriverId: row.active_driver_id as string | null,
+    standId: row.stand_id as string | null,
+    inspectionExpiry: row.inspection_expiry as string | null,
+    insuranceExpiry: row.insurance_expiry as string | null,
+    licenseExpiry: row.license_expiry as string | null,
     status: row.status as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -227,6 +231,10 @@ export class VehiclesService {
         model: dto.model,
         year: dto.year,
         owner_id: user.id,
+        stand_id: dto.standId ?? null,
+        inspection_expiry: dto.inspectionExpiry ?? null,
+        insurance_expiry: dto.insuranceExpiry ?? null,
+        license_expiry: dto.licenseExpiry ?? null,
       })
       .select('*')
       .single();
@@ -586,6 +594,10 @@ export class VehiclesService {
     if (dto.year !== undefined) payload.year = dto.year;
     if (dto.status !== undefined) payload.status = dto.status;
     if (dto.activeDriverId !== undefined) payload.active_driver_id = dto.activeDriverId;
+    if (dto.standId !== undefined) payload.stand_id = dto.standId;
+    if (dto.inspectionExpiry !== undefined) payload.inspection_expiry = dto.inspectionExpiry;
+    if (dto.insuranceExpiry !== undefined) payload.insurance_expiry = dto.insuranceExpiry;
+    if (dto.licenseExpiry !== undefined) payload.license_expiry = dto.licenseExpiry;
 
     const client = this.supabase.createUserClient(user.accessToken);
     const { data, error } = await client

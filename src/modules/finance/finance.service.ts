@@ -7,9 +7,12 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import {
+  CreateExpenseCategoryDto,
   CreateFinanceRecordDto,
+  UpdateExpenseCategoryDto,
   UpdateFinanceRecordDto,
 } from './dto/finance.dto';
+import { AuditService } from '../audit/audit.service';
 import { CreateFromReceiptDto } from './dto/scan-receipt.dto';
 import { getPagination } from '../../common/dto/pagination-query.dto';
 import { ReceiptOcrService } from '../ocr/receipt-ocr.service';
@@ -38,11 +41,24 @@ type AdminFinanceRecord = ReturnType<typeof mapRecord> & {
   memberName: string | null;
 };
 
+function mapExpenseCategory(row: Record<string, unknown>) {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as string,
+    isActive: row.is_active as boolean,
+    sortOrder: row.sort_order as number,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 @Injectable()
 export class FinanceService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly receiptOcr: ReceiptOcrService,
+    private readonly audit: AuditService,
   ) {}
 
   async getSummary(user: AuthUser, from?: string, to?: string, vehicleId?: string) {
@@ -478,6 +494,86 @@ export class FinanceService {
         memberName: memberMap.get(base.userId) ?? null,
       };
     });
+  }
+
+  async listExpenseCategories(type?: 'INCOME' | 'EXPENSE', activeOnly = true) {
+    let query = this.supabase.admin
+      .from('expense_categories')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (type) query = query.eq('type', type);
+    if (activeOnly) query = query.eq('is_active', true);
+
+    const { data, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+    return (data ?? []).map(mapExpenseCategory);
+  }
+
+  async adminListExpenseCategories(type?: 'INCOME' | 'EXPENSE') {
+    let query = this.supabase.admin
+      .from('expense_categories')
+      .select('*')
+      .order('sort_order', { ascending: true });
+
+    if (type) query = query.eq('type', type);
+
+    const { data, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+    return (data ?? []).map(mapExpenseCategory);
+  }
+
+  async adminCreateExpenseCategory(adminId: string, dto: CreateExpenseCategoryDto) {
+    const { data, error } = await this.supabase.admin
+      .from('expense_categories')
+      .insert({
+        name: dto.name.trim(),
+        type: dto.type,
+        is_active: dto.isActive ?? true,
+        sort_order: dto.sortOrder ?? 0,
+      })
+      .select('*')
+      .single();
+
+    if (error) throw new BadRequestException(error.message);
+    await this.audit.log(adminId, 'CREATE', 'expense_category', data.id as string);
+    return mapExpenseCategory(data);
+  }
+
+  async adminUpdateExpenseCategory(
+    adminId: string,
+    id: string,
+    dto: UpdateExpenseCategoryDto,
+  ) {
+    const payload: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (dto.name !== undefined) payload.name = dto.name.trim();
+    if (dto.type !== undefined) payload.type = dto.type;
+    if (dto.isActive !== undefined) payload.is_active = dto.isActive;
+    if (dto.sortOrder !== undefined) payload.sort_order = dto.sortOrder;
+
+    const { data, error } = await this.supabase.admin
+      .from('expense_categories')
+      .update(payload)
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error || !data) throw new NotFoundException('Kategori bulunamadı');
+    await this.audit.log(adminId, 'UPDATE', 'expense_category', id);
+    return mapExpenseCategory(data);
+  }
+
+  async adminDeleteExpenseCategory(adminId: string, id: string) {
+    const { error } = await this.supabase.admin
+      .from('expense_categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw new BadRequestException(error.message);
+    await this.audit.log(adminId, 'DELETE', 'expense_category', id);
+    return { deleted: true };
   }
 
   async adminGetAnalytics() {
