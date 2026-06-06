@@ -67,6 +67,23 @@ export class AdminDashboardService {
     startOfMonth.setHours(0, 0, 0, 0);
     const monthStart = startOfMonth.toISOString();
 
+    const { data: rpcData, error: rpcError } = await (
+      this.supabase.admin as unknown as {
+        rpc: (
+          fn: string,
+          params: Record<string, string>,
+        ) => Promise<{ data: unknown; error: { message: string } | null }>;
+      }
+    ).rpc('admin_dashboard_reports', { p_month_start: monthStart });
+
+    if (!rpcError && rpcData && typeof rpcData === 'object') {
+      const reports = rpcData as Record<string, unknown>;
+      return {
+        ...reports,
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
     const [
       usersByRole,
       usersByStatus,

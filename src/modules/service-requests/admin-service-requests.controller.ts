@@ -2,7 +2,9 @@ import { Body, Controller, Get, Patch, Param, Query, UseGuards } from '@nestjs/c
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ServiceRequestsService } from './service-requests.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
+import { AdminModuleGuard } from '../../common/guards/admin-module.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdminModule } from '../../common/decorators/admin-module.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
@@ -28,8 +30,9 @@ class AdminServiceRequestQueryDto extends PaginationQueryDto {
 
 @ApiTags('Admin - Service Requests')
 @ApiBearerAuth()
-@UseGuards(SupabaseAuthGuard, RolesGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard, AdminModuleGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
+@RequireAdminModule('service-requests')
 @Controller('admin/service-requests')
 export class AdminServiceRequestsController {
   constructor(private readonly service: ServiceRequestsService) {}

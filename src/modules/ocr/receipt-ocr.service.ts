@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import { createWorker } from 'tesseract.js';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { parseReceiptText, type ReceiptOcrResult } from './receipt-parser.util';
+import { parseSupabaseStoragePath } from './supabase-storage-path.util';
+import { OcrQueueService } from './ocr-queue.service';
 
 @Injectable()
 export class ReceiptOcrService {
@@ -11,9 +13,14 @@ export class ReceiptOcrService {
   constructor(
     private readonly config: ConfigService,
     private readonly supabase: SupabaseService,
+    private readonly ocrQueue: OcrQueueService,
   ) {}
 
   async scanImage(imageUrl: string): Promise<ReceiptOcrResult> {
+    return this.ocrQueue.run(() => this.scanImageInternal(imageUrl));
+  }
+
+  private async scanImageInternal(imageUrl: string): Promise<ReceiptOcrResult> {
     const buffer = await this.downloadImage(imageUrl);
     const provider = this.config.get<string>('OCR_PROVIDER', 'tesseract');
 
@@ -49,34 +56,21 @@ export class ReceiptOcrService {
   }
 
   private async downloadImage(imageUrl: string): Promise<Buffer> {
-    const storagePath = this.parseSupabaseStoragePath(imageUrl);
-    if (storagePath) {
-      const { data, error } = await this.supabase.admin.storage
-        .from(storagePath.bucket)
-        .download(storagePath.path);
-      if (!error && data) {
-        return Buffer.from(await data.arrayBuffer());
-      }
+    const storagePath = parseSupabaseStoragePath(imageUrl);
+    if (!storagePath) {
+      throw new BadRequestException(
+        'Fiş görseli yalnızca uygulama storage alanından okunabilir',
+      );
     }
 
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
+    const { data, error } = await this.supabase.admin.storage
+      .from(storagePath.bucket)
+      .download(storagePath.path);
+
+    if (error || !data) {
       throw new BadRequestException('Fiş görseli indirilemedi');
     }
-    return Buffer.from(await response.arrayBuffer());
-  }
 
-  private parseSupabaseStoragePath(imageUrl: string): { bucket: string; path: string } | null {
-    const patterns = [
-      /\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/,
-      /\/storage\/v1\/object\/([^/]+)\/(.+)$/,
-    ];
-    for (const pattern of patterns) {
-      const match = imageUrl.split('?')[0].match(pattern);
-      if (match) {
-        return { bucket: match[1], path: decodeURIComponent(match[2]) };
-      }
-    }
-    return null;
+    return Buffer.from(await data.arrayBuffer());
   }
 }

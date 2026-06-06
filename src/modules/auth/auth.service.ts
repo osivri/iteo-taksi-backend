@@ -167,7 +167,7 @@ export class AuthService {
         phone: null,
         email: data.user.email ?? null,
         role: 'USER',
-        status: 'ACTIVE',
+        status: 'PENDING_VERIFICATION',
       };
     }
 
@@ -219,7 +219,7 @@ export class AuthService {
         phone: null,
         email: null,
         role: 'USER',
-        status: 'ACTIVE',
+        status: 'PENDING_VERIFICATION',
       };
     }
 

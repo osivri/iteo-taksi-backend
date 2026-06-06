@@ -15,6 +15,7 @@ import {
 import { AuditService } from '../audit/audit.service';
 import { CreateFromReceiptDto } from './dto/scan-receipt.dto';
 import { getPagination } from '../../common/dto/pagination-query.dto';
+import { defaultFinanceRange } from '../../common/utils/date-range.util';
 import { ReceiptOcrService } from '../ocr/receipt-ocr.service';
 import type { ReceiptOcrResult } from '../ocr/receipt-parser.util';
 
@@ -62,11 +63,13 @@ export class FinanceService {
   ) {}
 
   async getSummary(user: AuthUser, from?: string, to?: string, vehicleId?: string) {
+    const range = from && to ? { from, to } : defaultFinanceRange();
     const client = this.supabase.createUserClient(user.accessToken);
-    let query = client.from('finance_records').select('type, amount');
-
-    if (from) query = query.gte('record_date', from);
-    if (to) query = query.lte('record_date', to);
+    let query = client
+      .from('finance_records')
+      .select('type, amount')
+      .gte('record_date', range.from)
+      .lte('record_date', range.to);
     if (vehicleId) query = query.eq('vehicle_id', vehicleId);
 
     const { data, error } = await query;
@@ -86,8 +89,8 @@ export class FinanceService {
       totalExpense,
       net: totalIncome - totalExpense,
       currency: 'TRY',
-      from: from ?? null,
-      to: to ?? null,
+      from: range.from,
+      to: range.to,
     };
   }
 
@@ -254,14 +257,14 @@ export class FinanceService {
   }
 
   async getTrends(user: AuthUser, from?: string, to?: string, vehicleId?: string) {
+    const range = from && to ? { from, to } : defaultFinanceRange();
     const client = this.supabase.createUserClient(user.accessToken);
     let query = client
       .from('finance_records')
       .select('type, amount, record_date')
+      .gte('record_date', range.from)
+      .lte('record_date', range.to)
       .order('record_date', { ascending: true });
-
-    if (from) query = query.gte('record_date', from);
-    if (to) query = query.lte('record_date', to);
     if (vehicleId) query = query.eq('vehicle_id', vehicleId);
 
     const { data, error } = await query;
@@ -581,14 +584,26 @@ export class FinanceService {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
     const monthStart = startOfMonth.toISOString().slice(0, 10);
+    const analyticsRange = defaultFinanceRange(12);
+    const signupHorizon = new Date();
+    signupHorizon.setDate(signupHorizon.getDate() - 56);
+    const signupFrom = signupHorizon.toISOString();
 
     const [records, ocrRecords, users] = await Promise.all([
-      this.supabase.admin.from('finance_records').select('category, type, amount, record_date'),
       this.supabase.admin
         .from('finance_records')
-        .select('receipt_ocr_data')
-        .not('receipt_ocr_data', 'is', null),
-      this.supabase.admin.from('profiles').select('created_at'),
+        .select('category, type, amount, record_date')
+        .gte('record_date', analyticsRange.from)
+        .lte('record_date', analyticsRange.to),
+      this.supabase.admin
+        .from('finance_records')
+        .select('id', { count: 'exact', head: true })
+        .not('receipt_ocr_data', 'is', null)
+        .gte('record_date', analyticsRange.from),
+      this.supabase.admin
+        .from('profiles')
+        .select('created_at')
+        .gte('created_at', signupFrom),
     ]);
 
     if (records.error) throw new BadRequestException(records.error.message);
@@ -626,7 +641,7 @@ export class FinanceService {
     return {
       monthlyFinance: { income: monthlyIncome, expense: monthlyExpense, net: monthlyIncome - monthlyExpense },
       topExpenseCategories,
-      ocrScanCount: ocrRecords.data?.length ?? 0,
+      ocrScanCount: ocrRecords.count ?? 0,
       weeklySignups: Object.entries(weeklySignups)
         .sort(([a], [b]) => a.localeCompare(b))
         .slice(-8)

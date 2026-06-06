@@ -2,14 +2,17 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, Query, UseGuards } f
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OhsService } from './ohs.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
+import { AdminModuleGuard } from '../../common/guards/admin-module.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdminModule } from '../../common/decorators/admin-module.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateOhsContentDto, UpdateOhsContentDto, OhsQueryDto } from './dto/ohs.dto';
 
 @ApiTags('Admin - OHS')
 @ApiBearerAuth()
-@UseGuards(SupabaseAuthGuard, RolesGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard, AdminModuleGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
+@RequireAdminModule('ohs')
 @Controller('admin/ohs/contents')
 export class AdminOhsController {
   constructor(private readonly ohsService: OhsService) {}

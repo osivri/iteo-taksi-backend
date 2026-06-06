@@ -31,14 +31,20 @@ export interface ProfileResponse {
   updatedAt: string;
 }
 
-export function mapProfile(row: ProfileRow): ProfileResponse {
+function maskNationalId(value: string | null): string | null {
+  if (!value) return null;
+  if (value.length <= 4) return '****';
+  return `${'*'.repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`;
+}
+
+export function mapProfile(row: ProfileRow, options?: { includeNationalId?: boolean }): ProfileResponse {
   return {
     id: row.id,
     firstName: row.first_name,
     lastName: row.last_name,
     phone: row.phone,
     email: row.email,
-    nationalId: row.national_id,
+    nationalId: options?.includeNationalId ? row.national_id : maskNationalId(row.national_id),
     memberNo: row.member_no,
     role: row.role,
     status: row.status,

@@ -6,8 +6,10 @@ import {
   Delete,
   Param,
   Body,
+  Query,
   UseGuards,
 } from '@nestjs/common';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { VehiclesService } from './vehicles.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -26,22 +28,43 @@ export class VehiclesController {
 
   @Get('marketplace/available-vehicles')
   @ApiOperation({ summary: 'Boşta araçları listele (şoförler için)' })
-  async listAvailableVehicles(@CurrentUser() user: AuthUser) {
-    const data = await this.vehiclesService.listAvailableVehicles(user);
+  async listAvailableVehicles(
+    @CurrentUser() user: AuthUser,
+    @Query() query: PaginationQueryDto,
+  ) {
+    const data = await this.vehiclesService.listAvailableVehicles(
+      user,
+      query.page,
+      query.limit,
+    );
     return { success: true, data };
   }
 
   @Get('marketplace/available-drivers')
   @ApiOperation({ summary: 'Boşta şoförleri listele (mal sahipleri için)' })
-  async listAvailableDrivers(@CurrentUser() user: AuthUser) {
-    const data = await this.vehiclesService.listAvailableDrivers(user);
+  async listAvailableDrivers(
+    @CurrentUser() user: AuthUser,
+    @Query() query: PaginationQueryDto,
+  ) {
+    const data = await this.vehiclesService.listAvailableDrivers(
+      user,
+      query.page,
+      query.limit,
+    );
     return { success: true, data };
   }
 
   @Get('plate-requests')
   @ApiOperation({ summary: 'Plaka çalışma onay talepleri' })
-  async listPlateRequests(@CurrentUser() user: AuthUser) {
-    const data = await this.vehiclesService.listPlateRequests(user);
+  async listPlateRequests(
+    @CurrentUser() user: AuthUser,
+    @Query() query: PaginationQueryDto,
+  ) {
+    const data = await this.vehiclesService.listPlateRequests(
+      user,
+      query.page,
+      query.limit,
+    );
     return { success: true, data };
   }
 
@@ -89,8 +112,8 @@ export class VehiclesController {
 
   @Get()
   @ApiOperation({ summary: 'Araç/plaka listesi' })
-  async list(@CurrentUser() user: AuthUser) {
-    const data = await this.vehiclesService.list(user);
+  async list(@CurrentUser() user: AuthUser, @Query() query: PaginationQueryDto) {
+    const data = await this.vehiclesService.list(user, query.page, query.limit);
     return { success: true, data };
   }
 

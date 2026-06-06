@@ -14,7 +14,9 @@ import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FinanceService } from './finance.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
+import { AdminModuleGuard } from '../../common/guards/admin-module.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdminModule } from '../../common/decorators/admin-module.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
@@ -36,8 +38,9 @@ class ExpenseCategoriesQueryDto {
 
 @ApiTags('Admin - Finance')
 @ApiBearerAuth()
-@UseGuards(SupabaseAuthGuard, RolesGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard, AdminModuleGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
+@RequireAdminModule('finance')
 @Controller('admin/finance')
 export class AdminFinanceController {
   constructor(private readonly financeService: FinanceService) {}

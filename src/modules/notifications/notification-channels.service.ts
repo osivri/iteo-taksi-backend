@@ -46,7 +46,7 @@ export class NotificationChannelsService {
 
     const emails = (profiles ?? []).map((p) => p.email).filter(Boolean);
     if (provider === 'mock') {
-      this.logger.log(`[MOCK EMAIL] ${emails.length} alıcı — "${title}": ${body.slice(0, 80)}...`);
+      this.logger.log(`[MOCK EMAIL] ${emails.length} alıcı — "${title}"`);
       return { channel: 'email', success: true, detail: `${emails.length} e-posta gönderildi` };
     }
 
@@ -64,7 +64,7 @@ export class NotificationChannelsService {
     const message = `${title}: ${body}`.slice(0, 160);
 
     if (provider === 'mock') {
-      this.logger.log(`[MOCK SMS] ${phones.length} alıcı — ${message}`);
+      this.logger.log(`[MOCK SMS] ${phones.length} alıcı`);
       return { channel: 'sms', success: true, detail: `${phones.length} SMS gönderildi` };
     }
 

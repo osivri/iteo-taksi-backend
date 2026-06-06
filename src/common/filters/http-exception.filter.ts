@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
+import { toClientMessage } from '../utils/safe-error.util';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -26,7 +27,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? exception.getResponse()
         : 'Internal server error';
 
-    const message =
+    const rawMessage =
       typeof exceptionResponse === 'string'
         ? exceptionResponse
         : ((exceptionResponse as { message?: string | string[] }).message ??
@@ -34,12 +35,14 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (status >= 500) {
       this.logger.error(exception);
+    } else if (typeof rawMessage === 'string' && rawMessage !== toClientMessage(rawMessage, status)) {
+      this.logger.warn(`Client error (${status}): ${rawMessage}`);
     }
 
     response.status(status).json({
       success: false,
       data: null,
-      message: Array.isArray(message) ? message.join(', ') : message,
+      message: toClientMessage(rawMessage, status),
     });
   }
 }

@@ -10,7 +10,9 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
+import { AdminModuleGuard } from '../../common/guards/admin-module.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdminModule } from '../../common/decorators/admin-module.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AdminUpdateUserDto } from './dto/update-profile.dto';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
@@ -26,8 +28,9 @@ class AdminUsersQueryDto extends PaginationQueryDto {
 
 @ApiTags('Admin - Users')
 @ApiBearerAuth()
-@UseGuards(SupabaseAuthGuard, RolesGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard, AdminModuleGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
+@RequireAdminModule('users')
 @Controller('admin/users')
 export class AdminUsersController {
   constructor(private readonly usersService: UsersService) {}

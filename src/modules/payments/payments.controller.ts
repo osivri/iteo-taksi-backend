@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Param, Body, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PaymentsService } from './payments.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -39,6 +40,7 @@ export class PaymentsController {
   }
 
   @Post('webhook')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @ApiOperation({ summary: 'Ödeme webhook (mock sağlayıcı)' })
   async webhook(@Body() dto: PaymentWebhookDto) {
     const data = await this.paymentsService.handleWebhook(dto);

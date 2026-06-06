@@ -89,8 +89,22 @@ export class PaymentsService {
     return { payment, checkoutUrl, providerTransactionId: providerTxId };
   }
 
+  private getWebhookSecret(): string {
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    const secret = this.configService.get<string>('PAYMENT_WEBHOOK_SECRET');
+
+    if (!secret || secret === 'dev-webhook-secret') {
+      if (isProd) {
+        throw new Error('PAYMENT_WEBHOOK_SECRET production ortamında zorunludur');
+      }
+      return 'dev-webhook-secret';
+    }
+
+    return secret;
+  }
+
   async handleWebhook(dto: PaymentWebhookDto) {
-    const secret = this.configService.get<string>('PAYMENT_WEBHOOK_SECRET', 'dev-webhook-secret');
+    const secret = this.getWebhookSecret();
     if (dto.webhookSecret !== secret) {
       throw new UnauthorizedException('Geçersiz webhook imzası');
     }
@@ -113,8 +127,9 @@ export class PaymentsService {
     };
 
     if (dto.status === 'SUCCESS') {
+      const supabaseUrl = this.configService.getOrThrow<string>('SUPABASE_URL').replace(/\/$/, '');
       payload.paid_at = new Date().toISOString();
-      payload.receipt_url = `https://ykkjyqhyrmqypmfxfzkq.supabase.co/storage/v1/object/public/content-images/receipts/${dto.paymentId}.pdf`;
+      payload.receipt_url = `${supabaseUrl}/storage/v1/object/public/content-images/receipts/${dto.paymentId}.pdf`;
     }
 
     const { data, error } = await this.supabase.admin

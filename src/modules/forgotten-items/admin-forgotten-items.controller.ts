@@ -2,7 +2,9 @@ import { Controller, Get, Patch, Param, Body, Query, UseGuards } from '@nestjs/c
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ForgottenItemsService } from './forgotten-items.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
+import { AdminModuleGuard } from '../../common/guards/admin-module.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { RequireAdminModule } from '../../common/decorators/admin-module.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import {
   ForgottenItemsQueryDto,
@@ -11,8 +13,9 @@ import {
 
 @ApiTags('Admin - Forgotten Items')
 @ApiBearerAuth()
-@UseGuards(SupabaseAuthGuard, RolesGuard)
+@UseGuards(SupabaseAuthGuard, RolesGuard, AdminModuleGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
+@RequireAdminModule('forgotten-items')
 @Controller('admin/forgotten-items')
 export class AdminForgottenItemsController {
   constructor(private readonly forgottenItemsService: ForgottenItemsService) {}

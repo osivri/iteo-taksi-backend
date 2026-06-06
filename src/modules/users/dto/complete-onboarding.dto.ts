@@ -1,4 +1,4 @@
-import { IsEnum, IsString, MaxLength } from 'class-validator';
+import { IsString, MaxLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CompleteOnboardingDto {
@@ -11,10 +11,6 @@ export class CompleteOnboardingDto {
   @IsString()
   @MaxLength(100)
   lastName!: string;
-
-  @ApiProperty({ enum: ['USER', 'DRIVER', 'PLATE_OWNER'] })
-  @IsEnum(['USER', 'DRIVER', 'PLATE_OWNER'])
-  role!: 'USER' | 'DRIVER' | 'PLATE_OWNER';
 
   @ApiProperty({ example: 'İstanbul' })
   @IsString()

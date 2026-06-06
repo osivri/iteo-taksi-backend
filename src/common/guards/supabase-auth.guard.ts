@@ -4,11 +4,14 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ProfileCacheService } from '../cache/profile-cache.service';
 import { SupabaseService } from '../../supabase/supabase.service';
-import type { AuthUser, ProfileRow, UserRole } from '../interfaces/auth-user.interface';
+import type { AuthUser, ProfileRow } from '../interfaces/auth-user.interface';
 import { extractBearerToken } from '../interfaces/auth-user.interface';
 
-function stubProfile(userId: string, email: string | null, role: UserRole): ProfileRow {
+const PRIVILEGED_ROLES = ['DRIVER', 'PLATE_OWNER', 'ADMIN', 'SUPER_ADMIN'] as const;
+
+function pendingProfileStub(userId: string, email: string | null): ProfileRow {
   const now = new Date().toISOString();
   return {
     id: userId,
@@ -18,7 +21,7 @@ function stubProfile(userId: string, email: string | null, role: UserRole): Prof
     email,
     national_id: null,
     member_no: null,
-    role,
+    role: 'USER',
     status: 'PENDING_VERIFICATION',
     profile_image_url: null,
     kvkk_accepted_at: null,
@@ -30,16 +33,12 @@ function stubProfile(userId: string, email: string | null, role: UserRole): Prof
   };
 }
 
-function resolveIntendedRole(metadata: Record<string, unknown> | undefined): UserRole {
-  const value = metadata?.intended_role;
-  if (value === 'DRIVER' || value === 'PLATE_OWNER' || value === 'USER') return value;
-  if (value === 'ADMIN' || value === 'SUPER_ADMIN') return value;
-  return 'USER';
-}
-
 @Injectable()
 export class SupabaseAuthGuard implements CanActivate {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly profileCache: ProfileCacheService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<{ user?: AuthUser; headers: { authorization?: string } }>();
@@ -55,37 +54,47 @@ export class SupabaseAuthGuard implements CanActivate {
       throw new UnauthorizedException('Geçersiz oturum');
     }
 
-    const userClient = this.supabase.createUserClient(token);
-    let profile: ProfileRow | null = null;
+    let profile: ProfileRow | null = this.profileCache.get(data.user.id);
 
-    const { data: userProfile, error: profileError } = await userClient
-      .from('profiles')
-      .select('*')
-      .eq('id', data.user.id)
-      .maybeSingle();
+    if (!profile) {
+      const userClient = this.supabase.createUserClient(token);
 
-    if (!profileError && userProfile) {
-      profile = userProfile;
-    } else if (this.supabase.hasServiceRole()) {
-      const { data: adminProfile } = await this.supabase.admin
+      const { data: userProfile, error: profileError } = await userClient
         .from('profiles')
         .select('*')
         .eq('id', data.user.id)
         .maybeSingle();
 
-      profile = adminProfile ?? null;
+      if (!profileError && userProfile) {
+        profile = userProfile;
+      } else if (this.supabase.hasServiceRole()) {
+        const { data: adminProfile } = await this.supabase.admin
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .maybeSingle();
+
+        profile = adminProfile ?? null;
+      }
+
+      if (profile) {
+        this.profileCache.set(data.user.id, profile);
+      }
     }
 
     if (!profile) {
-      profile = stubProfile(
-        data.user.id,
-        data.user.email ?? null,
-        resolveIntendedRole(data.user.user_metadata as Record<string, unknown> | undefined),
-      );
+      profile = pendingProfileStub(data.user.id, data.user.email ?? null);
     }
 
     if (profile.status === 'PASSIVE') {
       throw new UnauthorizedException('Hesap pasif durumda');
+    }
+
+    if (
+      PRIVILEGED_ROLES.includes(profile.role as (typeof PRIVILEGED_ROLES)[number]) &&
+      profile.status !== 'ACTIVE'
+    ) {
+      throw new UnauthorizedException('Hesap onayı bekleniyor');
     }
 
     request.user = {

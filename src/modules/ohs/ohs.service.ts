@@ -25,9 +25,47 @@ function mapOhs(row: Record<string, unknown>) {
   };
 }
 
+type RagChunk = ReturnType<typeof chunkOhsContent>[number];
+
 @Injectable()
 export class OhsService {
+  private ragChunksCache: { chunks: RagChunk[]; loadedAt: number } | null = null;
+  private readonly ragCacheTtlMs = 5 * 60 * 1000;
+
   constructor(private readonly supabase: SupabaseService) {}
+
+  private invalidateRagCache(): void {
+    this.ragChunksCache = null;
+  }
+
+  private async loadRagChunks(): Promise<RagChunk[]> {
+    if (
+      this.ragChunksCache &&
+      Date.now() - this.ragChunksCache.loadedAt < this.ragCacheTtlMs
+    ) {
+      return this.ragChunksCache.chunks;
+    }
+
+    const { data: contents } = await this.supabase.admin
+      .from('ohs_contents')
+      .select('*')
+      .eq('is_published', true)
+      .in('type', ['FAQ', 'GUIDE', 'ARTICLE']);
+
+    const chunks = (contents ?? []).flatMap((item) =>
+      chunkOhsContent({
+        id: item.id as string,
+        title: item.title as string,
+        type: item.type as string,
+        category: item.category as string,
+        description: item.description as string | null,
+        body: item.body as string | null,
+      }),
+    );
+
+    this.ragChunksCache = { chunks, loadedAt: Date.now() };
+    return chunks;
+  }
 
   async listPublic(user: AuthUser, page = 1, limit = 20, type?: string, category?: string) {
     const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
@@ -72,23 +110,7 @@ export class OhsService {
       return { answer: OUT_OF_SCOPE_REPLY, matched: false, sources: [] };
     }
 
-    const { data: contents } = await this.supabase.admin
-      .from('ohs_contents')
-      .select('*')
-      .eq('is_published', true)
-      .in('type', ['FAQ', 'GUIDE', 'ARTICLE']);
-
-    const chunks = (contents ?? []).flatMap((item) =>
-      chunkOhsContent({
-        id: item.id as string,
-        title: item.title as string,
-        type: item.type as string,
-        category: item.category as string,
-        description: item.description as string | null,
-        body: item.body as string | null,
-      }),
-    );
-
+    const chunks = await this.loadRagChunks();
     const matches = rankRagChunks(chunks, message, 3);
     if (matches.length === 0) {
       return { answer: NO_MATCH_REPLY, matched: false, sources: [] };
@@ -140,6 +162,7 @@ export class OhsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+    this.invalidateRagCache();
     return mapOhs(data);
   }
 
@@ -161,12 +184,14 @@ export class OhsService {
       .single();
 
     if (error || !data) throw new NotFoundException('İSG içeriği bulunamadı');
+    this.invalidateRagCache();
     return mapOhs(data);
   }
 
   async adminDelete(id: string) {
     const { error } = await this.supabase.admin.from('ohs_contents').delete().eq('id', id);
     if (error) throw new BadRequestException(error.message);
+    this.invalidateRagCache();
     return { deleted: true };
   }
 }

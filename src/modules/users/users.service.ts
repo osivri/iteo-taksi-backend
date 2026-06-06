@@ -10,20 +10,25 @@ import { UpdateProfileDto, AdminUpdateUserDto } from './dto/update-profile.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { RegisterPushTokenDto } from './dto/push-token.dto';
 import { PushService } from '../push/push.service';
+import { ProfileCacheService } from '../../common/cache/profile-cache.service';
 import { getPagination } from '../../common/dto/pagination-query.dto';
 import type { Database } from '../../supabase/database.types';
 
 type ProfileUpdate = Database['public']['Tables']['profiles']['Update'];
+type MemberOnboardingRole = 'USER' | 'DRIVER' | 'PLATE_OWNER';
+
+const MEMBER_ONBOARDING_ROLES: MemberOnboardingRole[] = ['USER', 'DRIVER', 'PLATE_OWNER'];
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly pushService: PushService,
+    private readonly profileCache: ProfileCacheService,
   ) {}
 
   async getMe(user: AuthUser) {
-    return mapProfile(user.profile);
+    return mapProfile(user.profile, { includeNationalId: true });
   }
 
   async updateMe(user: AuthUser, dto: UpdateProfileDto) {
@@ -51,16 +56,49 @@ export class UsersService {
       throw new BadRequestException(error?.message ?? 'Profil güncellenemedi');
     }
 
-    return mapProfile(data);
+    this.profileCache.invalidate(user.id);
+    return mapProfile(data, { includeNationalId: true });
+  }
+
+  private async resolveOnboardingRole(user: AuthUser): Promise<MemberOnboardingRole> {
+    const { data: existing } = await this.supabase.admin
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const existingRole = existing?.role;
+    if (
+      existingRole &&
+      MEMBER_ONBOARDING_ROLES.includes(existingRole as MemberOnboardingRole) &&
+      existingRole !== 'USER'
+    ) {
+      return existingRole as MemberOnboardingRole;
+    }
+
+    if (this.supabase.hasServiceRole()) {
+      const { data: authUser } = await this.supabase.admin.auth.admin.getUserById(user.id);
+      const intended = authUser?.user?.user_metadata?.intended_role;
+      if (
+        typeof intended === 'string' &&
+        MEMBER_ONBOARDING_ROLES.includes(intended as MemberOnboardingRole)
+      ) {
+        return intended as MemberOnboardingRole;
+      }
+    }
+
+    return 'USER';
   }
 
   async completeOnboarding(user: AuthUser, dto: CompleteOnboardingDto) {
     const client = this.supabase.createUserClient(user.accessToken);
+    const role = await this.resolveOnboardingRole(user);
+    const status = role === 'USER' ? ('ACTIVE' as const) : ('PENDING_VERIFICATION' as const);
     const payload = {
       first_name: dto.firstName,
       last_name: dto.lastName,
-      role: dto.role,
-      status: 'ACTIVE' as const,
+      role,
+      status,
       email: user.email ?? user.profile.email,
       city: dto.city.trim(),
       district: dto.district.trim(),
@@ -75,7 +113,8 @@ export class UsersService {
       .maybeSingle();
 
     if (updated) {
-      return mapProfile(updated);
+      this.profileCache.invalidate(user.id);
+      return mapProfile(updated, { includeNationalId: true });
     }
 
     const { data: inserted, error: insertError } = await client
@@ -88,7 +127,8 @@ export class UsersService {
       .single();
 
     if (inserted) {
-      return mapProfile(inserted);
+      this.profileCache.invalidate(user.id);
+      return mapProfile(inserted, { includeNationalId: true });
     }
 
     if (this.supabase.hasServiceRole()) {
@@ -105,7 +145,8 @@ export class UsersService {
         .single();
 
       if (data) {
-        return mapProfile(data);
+        this.profileCache.invalidate(user.id);
+        return mapProfile(data, { includeNationalId: true });
       }
 
       throw new BadRequestException(error?.message ?? 'Profil tamamlanamadı');
@@ -134,7 +175,8 @@ export class UsersService {
       throw new BadRequestException(error?.message ?? 'KVKK onayı kaydedilemedi');
     }
 
-    return mapProfile(data);
+    this.profileCache.invalidate(user.id);
+    return mapProfile(data, { includeNationalId: true });
   }
 
   async listUsers(page = 1, limit = 20, search?: string) {
@@ -159,7 +201,7 @@ export class UsersService {
     }
 
     return {
-      items: (data ?? []).map(mapProfile),
+      items: (data ?? []).map((row) => mapProfile(row)),
       meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
     };
   }
@@ -175,7 +217,7 @@ export class UsersService {
       throw new NotFoundException('Kullanıcı bulunamadı');
     }
 
-    return mapProfile(data);
+    return mapProfile(data, { includeNationalId: true });
   }
 
   async adminUpdateUser(id: string, dto: AdminUpdateUserDto) {
@@ -196,6 +238,7 @@ export class UsersService {
       throw new BadRequestException(error?.message ?? 'Kullanıcı güncellenemedi');
     }
 
-    return mapProfile(data);
+    this.profileCache.invalidate(id);
+    return mapProfile(data, { includeNationalId: true });
   }
 }

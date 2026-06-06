@@ -7,6 +7,7 @@ import {
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import type { Database } from '../../supabase/database.types';
+import { getPagination } from '../../common/dto/pagination-query.dto';
 import { CreateVehicleDto, UpdateVehicleDto } from './dto/vehicle.dto';
 
 type VehicleUpdate = Database['public']['Tables']['vehicles']['Update'];
@@ -79,9 +80,14 @@ function mapAvailableDriver(row: Record<string, unknown>) {
 export class VehiclesService {
   constructor(private readonly supabase: SupabaseService) {}
 
-  async list(user: AuthUser) {
+  async list(user: AuthUser, page = 1, limit = 20) {
+    const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
     const client = this.supabase.createUserClient(user.accessToken);
-    let query = client.from('vehicles').select('*').order('created_at', { ascending: false });
+    let query = client
+      .from('vehicles')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (user.role === 'PLATE_OWNER') {
       query = query.eq('owner_id', user.id);
@@ -89,17 +95,22 @@ export class VehiclesService {
       query = query.eq('active_driver_id', user.id);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw new BadRequestException(error.message);
-    return (data ?? []).map(mapVehicle);
+    return {
+      items: (data ?? []).map(mapVehicle),
+      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+    };
   }
 
-  async listPlateRequests(user: AuthUser) {
+  async listPlateRequests(user: AuthUser, page = 1, limit = 20) {
+    const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
     const client = this.supabase.createUserClient(user.accessToken);
     let query = client
       .from('driver_plate_requests')
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (user.role === 'DRIVER') {
       query = query.eq('driver_id', user.id);
@@ -109,7 +120,7 @@ export class VehiclesService {
       throw new ForbiddenException('Yetkiniz yok');
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw new BadRequestException(error.message);
 
     const rows = data ?? [];
@@ -126,27 +137,33 @@ export class VehiclesService {
       (profiles ?? []).map((p) => [p.id, `${p.first_name} ${p.last_name}`.trim()]),
     );
 
-    return rows.map((row) =>
-      mapPlateRequest({
-        ...row,
-        driver_name: nameById.get(row.driver_id),
-        owner_name: nameById.get(row.owner_id),
-      }),
-    );
+    return {
+      items: rows.map((row) =>
+        mapPlateRequest({
+          ...row,
+          driver_name: nameById.get(row.driver_id),
+          owner_name: nameById.get(row.owner_id),
+        }),
+      ),
+      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+    };
   }
 
-  async listAvailableVehicles(user: AuthUser) {
+  async listAvailableVehicles(user: AuthUser, page = 1, limit = 20) {
     if (user.role !== 'DRIVER') {
       throw new ForbiddenException('Sadece şoförler boş araçları görüntüleyebilir');
     }
 
-    const { data: vehicles, error } = await this.supabase.admin
+    const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
+
+    const { data: vehicles, error, count } = await this.supabase.admin
       .from('vehicles')
-      .select('id, plate_number, brand, model, year, owner_id, status')
+      .select('id, plate_number, brand, model, year, owner_id, status', { count: 'exact' })
       .is('active_driver_id', null)
       .eq('status', 'ACTIVE')
       .neq('owner_id', user.id)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(from, to);
 
     if (error) throw new BadRequestException(error.message);
 
@@ -168,16 +185,19 @@ export class VehiclesService {
 
     const pendingVehicleIds = new Set((pendingRequests ?? []).map((r) => r.vehicle_id));
 
-    return (vehicles ?? []).map((v) =>
-      mapAvailableVehicle({
-        ...v,
-        owner_name: ownerNameById.get(v.owner_id) ?? 'Mal Sahibi',
-        has_pending_request: pendingVehicleIds.has(v.id),
-      }),
-    );
+    return {
+      items: (vehicles ?? []).map((v) =>
+        mapAvailableVehicle({
+          ...v,
+          owner_name: ownerNameById.get(v.owner_id) ?? 'Mal Sahibi',
+          has_pending_request: pendingVehicleIds.has(v.id),
+        }),
+      ),
+      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+    };
   }
 
-  async listAvailableDrivers(user: AuthUser) {
+  async listAvailableDrivers(user: AuthUser, page = 1, limit = 20) {
     if (user.role !== 'PLATE_OWNER') {
       throw new ForbiddenException('Sadece mal sahipleri boşta şoförleri görüntüleyebilir');
     }
@@ -192,21 +212,27 @@ export class VehiclesService {
       (assignedDrivers ?? []).map((v) => v.active_driver_id).filter(Boolean) as string[],
     );
 
+    const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
+
     let query = this.supabase.admin
       .from('profiles')
-      .select('id, first_name, last_name, member_no, phone')
+      .select('id, first_name, last_name, member_no, phone', { count: 'exact' })
       .eq('role', 'DRIVER')
       .eq('status', 'ACTIVE')
-      .order('first_name', { ascending: true });
+      .order('first_name', { ascending: true })
+      .range(from, to);
 
     if (assignedIds.size > 0) {
       query = query.not('id', 'in', `(${[...assignedIds].join(',')})`);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
     if (error) throw new BadRequestException(error.message);
 
-    return (data ?? []).map(mapAvailableDriver);
+    return {
+      items: (data ?? []).map(mapAvailableDriver),
+      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+    };
   }
 
   async getById(user: AuthUser, id: string) {

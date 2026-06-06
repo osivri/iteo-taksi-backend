@@ -71,6 +71,16 @@ export class RatingsService {
       throw new BadRequestException('Puanlama kodunun süresi dolmuş');
     }
 
+    const { data: existingRating } = await this.supabase.admin
+      .from('driver_ratings')
+      .select('id')
+      .eq('token_id', dto.tokenId)
+      .maybeSingle();
+
+    if (existingRating) {
+      throw new BadRequestException('Bu puanlama kodu zaten kullanılmış');
+    }
+
     const { data, error } = await this.supabase.admin
       .from('driver_ratings')
       .insert({
@@ -83,6 +93,12 @@ export class RatingsService {
       .single();
 
     if (error) throw new BadRequestException(error.message);
+
+    await this.supabase.admin
+      .from('driver_rating_tokens')
+      .update({ is_active: false })
+      .eq('id', dto.tokenId);
+
     return mapRating(data);
   }
 

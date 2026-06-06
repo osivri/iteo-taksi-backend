@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Headers, Post, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
@@ -18,6 +19,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Üye e-posta/şifre girişi' })
   async memberLogin(@Body() dto: MemberLoginDto) {
     const data = await this.authService.memberLogin(dto);
@@ -25,6 +27,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Üye kayıt' })
   async memberRegister(@Body() dto: RegisterDto) {
     const data = await this.authService.memberRegister(dto);
@@ -32,6 +35,7 @@ export class AuthController {
   }
 
   @Post('request-otp')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Telefon OTP iste' })
   async requestOtp(@Body() dto: RequestOtpDto) {
     const data = await this.authService.requestOtp(dto);
@@ -39,6 +43,7 @@ export class AuthController {
   }
 
   @Post('verify-otp')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Telefon OTP doğrula' })
   async verifyOtp(@Body() dto: VerifyOtpDto) {
     const data = await this.authService.verifyOtp(dto);
@@ -46,6 +51,7 @@ export class AuthController {
   }
 
   @Post('admin/login')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @ApiOperation({ summary: 'Admin e-posta/şifre girişi' })
   async adminLogin(@Body() dto: AdminLoginDto) {
     const data = await this.authService.adminLogin(dto);
@@ -64,7 +70,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Oturum açmış kullanıcı profili' })
   async me(@CurrentUser() user: AuthUser) {
-    return { success: true, data: mapProfile(user.profile) };
+    return { success: true, data: mapProfile(user.profile, { includeNationalId: true }) };
   }
 
   @Post('logout')

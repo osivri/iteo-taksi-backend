@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RatingsService } from './ratings.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -12,6 +13,7 @@ export class RatingsController {
   constructor(private readonly ratingsService: RatingsService) {}
 
   @Post('submit')
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Puan gönder (auth gerekmez)' })
   async submit(@Body() dto: SubmitRatingDto) {
     const data = await this.ratingsService.submitRating(dto);

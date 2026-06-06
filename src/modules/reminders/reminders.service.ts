@@ -85,6 +85,22 @@ export class RemindersService {
       ),
     );
 
+    const ownerIds = [...new Set(candidates.map((c) => c.ownerId))];
+    const { data: allTokens } = await this.supabase.admin
+      .from('push_tokens')
+      .select('user_id, token')
+      .in('user_id', ownerIds);
+
+    const tokensByOwner = new Map<string, string[]>();
+    for (const row of allTokens ?? []) {
+      const userId = row.user_id as string;
+      const token = row.token as string;
+      if (!token) continue;
+      const list = tokensByOwner.get(userId) ?? [];
+      list.push(token);
+      tokensByOwner.set(userId, list);
+    }
+
     let sent = 0;
     let skipped = 0;
 
@@ -113,12 +129,7 @@ export class RemindersService {
           type: 'SYSTEM',
         });
 
-        const { data: tokens } = await this.supabase.admin
-          .from('push_tokens')
-          .select('token')
-          .eq('user_id', candidate.ownerId);
-
-        const pushTokens = (tokens ?? []).map((t) => t.token as string).filter(Boolean);
+        const pushTokens = tokensByOwner.get(candidate.ownerId) ?? [];
         if (pushTokens.length) {
           await this.pushService.sendExpoPush(
             pushTokens.map((to) => ({
