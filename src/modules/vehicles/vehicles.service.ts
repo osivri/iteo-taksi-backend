@@ -62,6 +62,9 @@ function mapAvailableVehicle(row: Record<string, unknown>) {
     ownerName: row.owner_name as string,
     status: row.status as string,
     hasPendingRequest: Boolean(row.has_pending_request),
+    district: (row.owner_district as string | null) ?? null,
+    city: (row.owner_city as string | null) ?? null,
+    addressLine: (row.owner_address_line as string | null) ?? null,
   };
 }
 
@@ -73,6 +76,9 @@ function mapAvailableDriver(row: Record<string, unknown>) {
     fullName: `${row.first_name as string} ${row.last_name as string}`.trim(),
     memberNo: row.member_no as string | null,
     phone: row.phone as string | null,
+    district: (row.district as string | null) ?? null,
+    city: (row.city as string | null) ?? null,
+    addressLine: (row.address_line as string | null) ?? null,
   };
 }
 
@@ -170,12 +176,10 @@ export class VehiclesService {
     const ownerIds = [...new Set((vehicles ?? []).map((v) => v.owner_id))];
     const { data: owners } = await this.supabase.admin
       .from('profiles')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, district, city, address_line')
       .in('id', ownerIds.length ? ownerIds : ['00000000-0000-0000-0000-000000000000']);
 
-    const ownerNameById = new Map(
-      (owners ?? []).map((o) => [o.id, `${o.first_name} ${o.last_name}`.trim()]),
-    );
+    const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
 
     const { data: pendingRequests } = await this.supabase.admin
       .from('driver_plate_requests')
@@ -186,13 +190,17 @@ export class VehiclesService {
     const pendingVehicleIds = new Set((pendingRequests ?? []).map((r) => r.vehicle_id));
 
     return {
-      items: (vehicles ?? []).map((v) =>
-        mapAvailableVehicle({
+      items: (vehicles ?? []).map((v) => {
+        const owner = ownerById.get(v.owner_id);
+        return mapAvailableVehicle({
           ...v,
-          owner_name: ownerNameById.get(v.owner_id) ?? 'Oda Üyesi',
+          owner_name: owner ? `${owner.first_name} ${owner.last_name}`.trim() : 'Oda Üyesi',
+          owner_district: owner?.district ?? null,
+          owner_city: owner?.city ?? null,
+          owner_address_line: owner?.address_line ?? null,
           has_pending_request: pendingVehicleIds.has(v.id),
-        }),
-      ),
+        });
+      }),
       meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
     };
   }
@@ -216,7 +224,9 @@ export class VehiclesService {
 
     let query = this.supabase.admin
       .from('profiles')
-      .select('id, first_name, last_name, member_no, phone', { count: 'exact' })
+      .select('id, first_name, last_name, member_no, phone, district, city, address_line', {
+        count: 'exact',
+      })
       .eq('role', 'DRIVER')
       .eq('status', 'ACTIVE')
       .order('first_name', { ascending: true })
