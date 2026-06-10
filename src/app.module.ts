@@ -27,6 +27,8 @@ import { RatingsModule } from './modules/ratings/ratings.module';
 import { SparePartsModule } from './modules/spare-parts/spare-parts.module';
 import { StaffExpensesModule } from './modules/staff-expenses/staff-expenses.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { FeeConfigModule } from './modules/fee-config/fee-config.module';
+import { UserDocumentsModule } from './modules/user-documents/user-documents.module';
 
 @Module({
   imports: [
@@ -63,6 +65,8 @@ import { RemindersModule } from './modules/reminders/reminders.module';
     SparePartsModule,
     StaffExpensesModule,
     RemindersModule,
+    FeeConfigModule,
+    UserDocumentsModule,
   ],
   providers: [
     {

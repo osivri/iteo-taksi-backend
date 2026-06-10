@@ -8,6 +8,8 @@ import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { CreateAppointmentDto, UpdateAppointmentStatusDto } from './dto/appointment.dto';
 import { getPagination } from '../../common/dto/pagination-query.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { PushService } from '../push/push.service';
 
 function mapAppointment(row: Record<string, unknown>) {
   return {
@@ -31,9 +33,20 @@ function mapAppointment(row: Record<string, unknown>) {
   };
 }
 
+const STATUS_MESSAGES: Record<string, { title: string; body: string }> = {
+  APPROVED: { title: 'Randevu Onaylandı', body: 'Randevu talebiniz onaylandı.' },
+  REJECTED: { title: 'Randevu Reddedildi', body: 'Randevu talebiniz reddedildi.' },
+  COMPLETED: { title: 'Randevu Tamamlandı', body: 'Randevunuz tamamlandı olarak işaretlendi.' },
+  CANCELLED: { title: 'Randevu İptal Edildi', body: 'Randevunuz iptal edildi.' },
+};
+
 @Injectable()
 export class AppointmentsService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly notificationsService: NotificationsService,
+    private readonly pushService: PushService,
+  ) {}
 
   async list(user: AuthUser, page = 1, limit = 20, type?: string, status?: string) {
     const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
@@ -145,6 +158,28 @@ export class AppointmentsService {
       .single();
 
     if (error || !data) throw new NotFoundException('Randevu bulunamadı');
-    return mapAppointment(data);
+
+    const mapped = mapAppointment(data);
+    await this.notifyStatusChange(mapped.userId, dto.status, dto.adminNote);
+    return mapped;
+  }
+
+  private async notifyStatusChange(userId: string, status: string, adminNote?: string) {
+    const template = STATUS_MESSAGES[status];
+    if (!template) return;
+
+    const body = adminNote ? `${template.body} Not: ${adminNote}` : template.body;
+
+    await this.notificationsService.send({
+      userId,
+      title: template.title,
+      body,
+      type: 'APPOINTMENT',
+    });
+
+    await this.pushService.sendToUser(userId, template.title, body, {
+      type: 'APPOINTMENT',
+      screen: '/(tabs)/appointments',
+    });
   }
 }

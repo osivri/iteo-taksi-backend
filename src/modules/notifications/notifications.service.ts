@@ -67,12 +67,8 @@ export class NotificationsService {
       result = await this.sendToUser(dto.userId, dto.title, dto.body, dto.type);
       userIds = [dto.userId];
     } else {
-      result = await this.sendBroadcast(dto.title, dto.body, dto.type);
-      const { data: users } = await this.supabase.admin
-        .from('profiles')
-        .select('id')
-        .eq('status', 'ACTIVE');
-      userIds = (users ?? []).map((u) => u.id);
+      result = await this.sendSegmented(dto.title, dto.body, dto.type, dto.roles, dto.district);
+      userIds = await this.resolveSegmentUserIds(dto.roles, dto.district);
     }
 
     const channelResults =
@@ -97,6 +93,37 @@ export class NotificationsService {
 
     if (error) throw new BadRequestException(error.message);
     return mapNotification(data);
+  }
+
+  private async resolveSegmentUserIds(roles?: string[], district?: string) {
+    let query = this.supabase.admin.from('profiles').select('id').eq('status', 'ACTIVE');
+    if (roles?.length) query = query.in('role', roles as ('USER' | 'DRIVER' | 'PLATE_OWNER')[]);
+    if (district) query = query.ilike('district', district);
+    const { data: users, error } = await query;
+    if (error) throw new BadRequestException(error.message);
+    return (users ?? []).map((u) => u.id);
+  }
+
+  async sendSegmented(
+    title: string,
+    body: string,
+    type: SendNotificationDto['type'],
+    roles?: string[],
+    district?: string,
+  ) {
+    const userIds = await this.resolveSegmentUserIds(roles, district);
+    if (!userIds.length) throw new BadRequestException('Hedef kullanıcı bulunamadı');
+
+    const rows = userIds.map((userId) => ({
+      user_id: userId,
+      title,
+      body,
+      type,
+    }));
+
+    const { data, error } = await this.supabase.admin.from('notifications').insert(rows).select('*');
+    if (error) throw new BadRequestException(error.message);
+    return { sentCount: data?.length ?? 0 };
   }
 
   async sendBroadcast(title: string, body: string, type: SendNotificationDto['type']) {

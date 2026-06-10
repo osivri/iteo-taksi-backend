@@ -25,6 +25,8 @@ export type Database = {
           city: string | null;
           district: string | null;
           address_line: string | null;
+          push_notifications_enabled: boolean;
+          sms_notifications_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -43,10 +45,42 @@ export type Database = {
           city?: string | null;
           district?: string | null;
           address_line?: string | null;
+          push_notifications_enabled?: boolean;
+          sms_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
         Update: Partial<Database['public']['Tables']['profiles']['Insert']>;
+        Relationships: [];
+      };
+      fee_config: {
+        Row: { key: string; amount: number; currency: string; label: string | null; updated_at: string };
+        Insert: { key: string; amount: number; currency?: string; label?: string | null; updated_at?: string };
+        Update: Partial<Database['public']['Tables']['fee_config']['Insert']>;
+        Relationships: [];
+      };
+      user_documents: {
+        Row: {
+          id: string;
+          user_id: string;
+          type: string;
+          file_url: string;
+          status: string;
+          admin_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          type: string;
+          file_url: string;
+          status?: string;
+          admin_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['user_documents']['Insert']>;
         Relationships: [];
       };
       announcements: { Row: Record<string, unknown>; Insert: Record<string, unknown>; Update: Record<string, unknown>; Relationships: [] };

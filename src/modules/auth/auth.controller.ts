@@ -8,6 +8,7 @@ import { AdminLoginDto } from './dto/admin-login.dto';
 import { MemberLoginDto } from './dto/member-login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { ForgotPasswordDto, ResetPasswordDto } from './dto/forgot-password.dto';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
@@ -71,6 +72,24 @@ export class AuthController {
   @ApiOperation({ summary: 'Oturum açmış kullanıcı profili' })
   async me(@CurrentUser() user: AuthUser) {
     return { success: true, data: mapProfile(user.profile, { includeNationalId: true }) };
+  }
+
+  @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Şifre sıfırlama e-postası gönder' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    const data = await this.authService.forgotPassword(dto.email);
+    return { success: true, data };
+  }
+
+  @Post('reset-password')
+  @UseGuards(SupabaseAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Yeni şifre belirle (sıfırlama oturumu)' })
+  async resetPassword(@CurrentUser() user: AuthUser, @Body() dto: ResetPasswordDto) {
+    const data = await this.authService.resetPassword(user.accessToken, dto.password);
+    return { success: true, data, message: 'Şifre güncellendi' };
   }
 
   @Post('logout')

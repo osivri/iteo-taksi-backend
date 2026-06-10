@@ -3,6 +3,7 @@ import {
   BadRequestException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { SupabaseService } from '../../supabase/supabase.service';
 import { RequestOtpDto } from './dto/request-otp.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
@@ -12,7 +13,10 @@ import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly supabase: SupabaseService) {}
+  constructor(
+    private readonly supabase: SupabaseService,
+    private readonly config: ConfigService,
+  ) {}
 
   private formatPhone(phone: string): string {
     const digits = phone.replace(/\D/g, '');
@@ -202,6 +206,27 @@ export class AuthService {
   async signOut(accessToken: string) {
     await this.supabase.admin.auth.admin.signOut(accessToken);
     return { message: 'Çıkış yapıldı' };
+  }
+
+  async forgotPassword(email: string) {
+    const redirectTo = this.config.get(
+      'PASSWORD_RESET_REDIRECT_URL',
+      'iteomobil://reset-password',
+    );
+    const { error } = await this.supabase.anon.auth.resetPasswordForEmail(email, {
+      redirectTo,
+    });
+
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi' };
+  }
+
+  async resetPassword(accessToken: string, password: string) {
+    const client = this.supabase.createUserClient(accessToken);
+    const { error } = await client.auth.updateUser({ password });
+
+    if (error) throw new BadRequestException(error.message);
+    return { message: 'Şifreniz güncellendi' };
   }
 
   private async getProfile(userId: string) {

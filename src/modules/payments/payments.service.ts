@@ -5,11 +5,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'crypto';
 import { SupabaseService } from '../../supabase/supabase.service';
 import type { AuthUser } from '../../common/interfaces/auth-user.interface';
 import { CheckoutDto, PaymentWebhookDto } from './dto/payment.dto';
 import { getPagination } from '../../common/dto/pagination-query.dto';
+import { FeeConfigService } from '../fee-config/fee-config.service';
+import { PaymentProviderService } from './payment-provider.service';
 
 function mapPayment(row: Record<string, unknown>) {
   return {
@@ -33,6 +34,8 @@ export class PaymentsService {
   constructor(
     private readonly supabase: SupabaseService,
     private readonly configService: ConfigService,
+    private readonly feeConfig: FeeConfigService,
+    private readonly paymentProvider: PaymentProviderService,
   ) {}
 
   async list(user: AuthUser, page = 1, limit = 20, status?: string) {
@@ -65,7 +68,14 @@ export class PaymentsService {
   }
 
   async checkout(user: AuthUser, dto: CheckoutDto) {
-    const providerTxId = `mock_${randomUUID()}`;
+    const amount =
+      dto.amount ??
+      (dto.type !== 'OTHER' ? await this.feeConfig.getAmount(dto.type) : null);
+
+    if (!amount) {
+      throw new BadRequestException('OTHER tipi ödemeler için tutar zorunludur');
+    }
+
     const client = this.supabase.createUserClient(user.accessToken);
 
     const { data, error } = await client
@@ -73,10 +83,9 @@ export class PaymentsService {
       .insert({
         user_id: user.id,
         type: dto.type,
-        amount: dto.amount,
+        amount,
         status: 'PENDING',
-        provider: 'mock',
-        provider_transaction_id: providerTxId,
+        provider: 'pending',
       })
       .select('*')
       .single();
@@ -84,9 +93,25 @@ export class PaymentsService {
     if (error) throw new BadRequestException(error.message);
 
     const payment = mapPayment(data);
-    const checkoutUrl = `${this.configService.get('MOCK_PAYMENT_URL', 'http://localhost:3000/payments/mock')}?paymentId=${payment.id}&tx=${providerTxId}`;
+    const checkout = this.paymentProvider.createCheckout(payment.id);
 
-    return { payment, checkoutUrl, providerTransactionId: providerTxId };
+    const { data: updated, error: updateError } = await this.supabase.admin
+      .from('payments')
+      .update({
+        provider: checkout.provider,
+        provider_transaction_id: checkout.providerTransactionId,
+      })
+      .eq('id', payment.id)
+      .select('*')
+      .single();
+
+    if (updateError || !updated) throw new BadRequestException(updateError?.message ?? 'Ödeme güncellenemedi');
+
+    return {
+      payment: mapPayment(updated),
+      checkoutUrl: checkout.checkoutUrl,
+      providerTransactionId: checkout.providerTransactionId,
+    };
   }
 
   private getWebhookSecret(): string {

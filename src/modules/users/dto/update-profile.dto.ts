@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import type { Database } from '../../../supabase/database.types';
 
@@ -63,6 +63,16 @@ export class UpdateProfileDto {
   @IsString()
   @MaxLength(500)
   addressLine?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  pushNotificationsEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  smsNotificationsEnabled?: boolean;
 }
 
 export class AdminUpdateUserDto {

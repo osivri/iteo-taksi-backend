@@ -15,11 +15,12 @@ export class CheckoutDto {
   @IsEnum(['DUES', 'APP_FEE', 'SERVICE_FEE', 'OTHER'])
   type!: 'DUES' | 'APP_FEE' | 'SERVICE_FEE' | 'OTHER';
 
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Boş bırakılırsa sunucu tarifesinden alınır' })
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0.01)
-  amount!: number;
+  amount?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

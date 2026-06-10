@@ -5,6 +5,7 @@ export const STORAGE_BUCKETS = [
   'profile-images',
   'content-images',
   'forgotten-items',
+  'verification-documents',
 ] as const;
 
 export type StorageBucket = (typeof STORAGE_BUCKETS)[number];
@@ -31,6 +32,11 @@ export const BUCKET_ACCESS: Record<
   'forgotten-items': {
     roles: ['USER', 'DRIVER', 'PLATE_OWNER', 'ADMIN', 'SUPER_ADMIN'],
     mimes: ['image/jpeg', 'image/png', 'image/webp'],
+    maxBytes: 5 * 1024 * 1024,
+  },
+  'verification-documents': {
+    roles: ['USER', 'DRIVER', 'PLATE_OWNER', 'ADMIN', 'SUPER_ADMIN'],
+    mimes: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
     maxBytes: 5 * 1024 * 1024,
   },
 };

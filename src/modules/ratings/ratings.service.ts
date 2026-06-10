@@ -144,4 +144,52 @@ export class RatingsService {
       meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
     };
   }
+
+  async adminList(page = 1, limit = 30) {
+    const { from, to, page: safePage, limit: safeLimit } = getPagination(page, limit);
+    const { data, error, count } = await this.supabase.admin
+      .from('driver_ratings')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) throw new BadRequestException(error.message);
+    return {
+      items: (data ?? []).map(mapRating),
+      meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
+    };
+  }
+
+  async adminAnalytics() {
+    const { data, error } = await this.supabase.admin
+      .from('driver_ratings')
+      .select('score, driver_id');
+
+    if (error) throw new BadRequestException(error.message);
+
+    const scores = (data ?? []).map((r) => Number(r.score));
+    const totalCount = scores.length;
+    const overallAverage = totalCount
+      ? Math.round((scores.reduce((sum, s) => sum + s, 0) / totalCount) * 10) / 10
+      : 0;
+
+    const byDriver = new Map<string, number[]>();
+    for (const row of data ?? []) {
+      const driverId = row.driver_id as string;
+      const list = byDriver.get(driverId) ?? [];
+      list.push(Number(row.score));
+      byDriver.set(driverId, list);
+    }
+
+    const topDrivers = [...byDriver.entries()]
+      .map(([driverId, driverScores]) => ({
+        driverId,
+        average: Math.round((driverScores.reduce((a, b) => a + b, 0) / driverScores.length) * 10) / 10,
+        count: driverScores.length,
+      }))
+      .sort((a, b) => b.average - a.average || b.count - a.count)
+      .slice(0, 10);
+
+    return { overallAverage, totalCount, topDrivers };
+  }
 }

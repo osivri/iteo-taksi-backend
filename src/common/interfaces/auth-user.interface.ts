@@ -27,6 +27,8 @@ export interface ProfileResponse {
   city: string | null;
   district: string | null;
   addressLine: string | null;
+  pushNotificationsEnabled: boolean;
+  smsNotificationsEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -53,6 +55,8 @@ export function mapProfile(row: ProfileRow, options?: { includeNationalId?: bool
     city: row.city ?? null,
     district: row.district ?? null,
     addressLine: row.address_line ?? null,
+    pushNotificationsEnabled: row.push_notifications_enabled !== false,
+    smsNotificationsEnabled: row.sms_notifications_enabled !== false,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

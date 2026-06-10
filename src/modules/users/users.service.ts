@@ -43,6 +43,12 @@ export class UsersService {
     if (dto.city !== undefined) payload.city = dto.city;
     if (dto.district !== undefined) payload.district = dto.district;
     if (dto.addressLine !== undefined) payload.address_line = dto.addressLine;
+    if (dto.pushNotificationsEnabled !== undefined) {
+      payload.push_notifications_enabled = dto.pushNotificationsEnabled;
+    }
+    if (dto.smsNotificationsEnabled !== undefined) {
+      payload.sms_notifications_enabled = dto.smsNotificationsEnabled;
+    }
 
     const client = this.supabase.createUserClient(user.accessToken);
     const { data, error } = await client

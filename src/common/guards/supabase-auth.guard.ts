@@ -28,6 +28,8 @@ function pendingProfileStub(userId: string, email: string | null): ProfileRow {
     city: null,
     district: null,
     address_line: null,
+    push_notifications_enabled: true,
+    sms_notifications_enabled: true,
     created_at: now,
     updated_at: now,
   };

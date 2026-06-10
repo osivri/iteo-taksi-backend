@@ -61,6 +61,23 @@ export class PushService {
     return this.sendExpoPush(tokens.map((to) => ({ to, title, body, data })));
   }
 
+  async sendToUser(userId: string, title: string, body: string, data?: Record<string, string>) {
+    const { data: rows, error } = await this.supabase.admin
+      .from('push_tokens')
+      .select('token')
+      .eq('user_id', userId);
+
+    if (error) {
+      this.logger.warn(`Push token listesi alınamadı: ${error.message}`);
+      return { sent: 0 };
+    }
+
+    const tokens = (rows ?? []).map((r) => r.token as string).filter(Boolean);
+    if (!tokens.length) return { sent: 0 };
+
+    return this.sendExpoPush(tokens.map((to) => ({ to, title, body, data })));
+  }
+
   async sendToActiveUsers(title: string, body: string, data?: Record<string, string>) {
     const { data: users, error: usersError } = await this.supabase.admin
       .from('profiles')

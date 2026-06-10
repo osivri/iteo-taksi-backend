@@ -35,4 +35,19 @@ export class SendNotificationDto {
   @IsArray()
   @IsIn(['in_app', 'email', 'sms'], { each: true })
   channels?: ('in_app' | 'email' | 'sms')[];
+
+  @ApiPropertyOptional({
+    enum: ['USER', 'DRIVER', 'PLATE_OWNER'],
+    isArray: true,
+    description: 'Hedef roller (broadcast için)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['USER', 'DRIVER', 'PLATE_OWNER'], { each: true })
+  roles?: ('USER' | 'DRIVER' | 'PLATE_OWNER')[];
+
+  @ApiPropertyOptional({ description: 'Hedef ilçe (broadcast için)' })
+  @IsOptional()
+  @IsString()
+  district?: string;
 }

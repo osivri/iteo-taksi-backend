@@ -53,6 +53,17 @@ export class StorageController {
     return this.handleUpload(user, file, 'profile-images');
   }
 
+  @Post('verification-documents')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Doğrulama belgesi yükle (ehliyet, ruhsat, SRC)' })
+  @UseInterceptors(uploadInterceptor(5 * 1024 * 1024))
+  async uploadVerificationDocument(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.handleUpload(user, file, 'verification-documents');
+  }
+
   @Post('forgotten-items')
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Unutulan eşya görseli yükle' })
