@@ -1,7 +1,17 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient,
+  type SupabaseClient,
+  type SupabaseClientOptions,
+} from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import type { Database } from './database.types';
+
+const supabaseClientOptions: SupabaseClientOptions<'public'> = {
+  auth: { autoRefreshToken: false, persistSession: false },
+  realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+};
 
 @Injectable()
 export class SupabaseService implements OnModuleInit {
@@ -28,13 +38,13 @@ export class SupabaseService implements OnModuleInit {
       );
     }
 
-    this.adminClient = createClient<Database>(url, serviceRoleKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    this.adminClient = createClient<Database>(
+      url,
+      serviceRoleKey,
+      supabaseClientOptions,
+    );
 
-    this.anonClient = createClient<Database>(url, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
+    this.anonClient = createClient<Database>(url, anonKey, supabaseClientOptions);
 
     if (this.serviceRoleConfigured) {
       void this.ensureStorageBuckets();
@@ -63,8 +73,8 @@ export class SupabaseService implements OnModuleInit {
     const anonKey = this.configService.getOrThrow<string>('SUPABASE_ANON_KEY');
 
     return createClient<Database>(url, anonKey, {
+      ...supabaseClientOptions,
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
-      auth: { autoRefreshToken: false, persistSession: false },
     });
   }
 
