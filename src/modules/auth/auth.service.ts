@@ -94,7 +94,7 @@ export class AuthService {
       email: dto.email,
       password: dto.password,
       options: {
-        data: { intended_role: dto.intendedRole ?? 'USER' },
+        data: { intended_role: dto.intendedRole === 'USER' ? 'PLATE_OWNER' : (dto.intendedRole ?? 'PLATE_OWNER') },
       },
     });
 

@@ -27,6 +27,13 @@ function mapListing(row: Record<string, unknown>) {
     neighborhood: row.neighborhood as string | null,
     photos: (row.photos as string[]) ?? [],
     contactPhone: row.contact_phone as string | null,
+    brand: row.brand as string | null,
+    model: row.model as string | null,
+    vehicleYear: row.vehicle_year != null ? Number(row.vehicle_year) : null,
+    plateNumber: row.plate_number as string | null,
+    mileage: row.mileage != null ? Number(row.mileage) : null,
+    fuelType: row.fuel_type as string | null,
+    damageInfo: row.damage_info as string | null,
     adminNote: row.admin_note as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -54,6 +61,13 @@ export class ListingsService {
         neighborhood: dto.neighborhood?.trim() ?? null,
         photos: dto.photos ?? [],
         contact_phone: dto.contactPhone?.trim() ?? null,
+        brand: dto.brand?.trim() ?? null,
+        model: dto.model?.trim() ?? null,
+        vehicle_year: dto.vehicleYear ?? null,
+        plate_number: dto.plateNumber?.trim() ?? null,
+        mileage: dto.mileage ?? null,
+        fuel_type: dto.fuelType?.trim() ?? null,
+        damage_info: dto.damageInfo?.trim() ?? null,
         status: 'PENDING',
       })
       .select('*')
@@ -80,6 +94,24 @@ export class ListingsService {
       items: (data ?? []).map(mapListing),
       meta: { page: safePage, limit: safeLimit, total: count ?? 0 },
     };
+  }
+
+  async getById(user: AuthUser, id: string) {
+    const client = this.supabase.createUserClient(user.accessToken);
+    const { data, error } = await client
+      .from('classified_listings')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) throw new NotFoundException('İlan bulunamadı');
+
+    const isOwner = data.user_id === user.id;
+    if (!isOwner && data.status !== 'APPROVED') {
+      throw new NotFoundException('İlan bulunamadı');
+    }
+
+    return { ...mapListing(data), isOwner };
   }
 
   async listPublic(

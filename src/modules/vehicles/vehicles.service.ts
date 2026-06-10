@@ -189,7 +189,7 @@ export class VehiclesService {
       items: (vehicles ?? []).map((v) =>
         mapAvailableVehicle({
           ...v,
-          owner_name: ownerNameById.get(v.owner_id) ?? 'Mal Sahibi',
+          owner_name: ownerNameById.get(v.owner_id) ?? 'Oda Üyesi',
           has_pending_request: pendingVehicleIds.has(v.id),
         }),
       ),
@@ -374,7 +374,7 @@ export class VehiclesService {
 
     const ownerName = ownerProfile
       ? `${ownerProfile.first_name} ${ownerProfile.last_name}`
-      : 'Bir plaka sahibi';
+      : 'Bir oda üyesi';
 
     await this.supabase.admin.from('notifications').insert({
       user_id: driverId,
@@ -396,7 +396,7 @@ export class VehiclesService {
     if (vehicleError) throw new BadRequestException(vehicleError.message);
     if (!vehicle) {
       throw new BadRequestException(
-        'Bu plaka sistemde kayıtlı değil. Plaka sahibinin önce plakayı kaydetmesi gerekir.',
+        'Bu plaka sistemde kayıtlı değil. Oda üyesinin önce plakayı kaydetmesi gerekir.',
       );
     }
 

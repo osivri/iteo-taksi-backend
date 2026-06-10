@@ -1,9 +1,11 @@
 import {
   IsArray,
   IsEnum,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -62,6 +64,51 @@ export class CreateListingDto {
   @IsString()
   @MaxLength(30)
   contactPhone?: string;
+
+  @ApiPropertyOptional({ description: 'Araç markası' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  brand?: string;
+
+  @ApiPropertyOptional({ description: 'Araç modeli' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  model?: string;
+
+  @ApiPropertyOptional({ description: 'Model yılı', example: 2018 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1950)
+  @Max(2100)
+  vehicleYear?: number;
+
+  @ApiPropertyOptional({ description: 'Plaka numarası' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  plateNumber?: string;
+
+  @ApiPropertyOptional({ description: 'Kilometre', example: 125000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  mileage?: number;
+
+  @ApiPropertyOptional({ description: 'Yakıt tipi' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  fuelType?: string;
+
+  @ApiPropertyOptional({ description: 'Hasar ve genel durum bilgisi' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(3000)
+  damageInfo?: string;
 }
 
 export class ListingsQueryDto extends PaginationQueryDto {

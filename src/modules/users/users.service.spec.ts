@@ -76,7 +76,7 @@ describe('UsersService onboarding', () => {
     expect(result.role).toBe('DRIVER');
   });
 
-  it('sets USER onboarding status to ACTIVE', async () => {
+  it('maps legacy USER onboarding to PLATE_OWNER with PENDING_VERIFICATION', async () => {
     const service = buildService({
       id: 'u2',
       first_name: 'Ayşe',
@@ -85,8 +85,8 @@ describe('UsersService onboarding', () => {
       email: 'b@c.com',
       national_id: null,
       member_no: null,
-      role: 'USER',
-      status: 'ACTIVE',
+      role: 'PLATE_OWNER',
+      status: 'PENDING_VERIFICATION',
       profile_image_url: null,
       kvkk_accepted_at: null,
       city: 'Ankara',
@@ -101,7 +101,7 @@ describe('UsersService onboarding', () => {
         id: 'u2',
         email: 'b@c.com',
         accessToken: 'token',
-        role: 'USER',
+        role: 'PLATE_OWNER',
         profile: {} as never,
       },
       {
@@ -113,6 +113,7 @@ describe('UsersService onboarding', () => {
       },
     );
 
-    expect(result.status).toBe('ACTIVE');
+    expect(result.status).toBe('PENDING_VERIFICATION');
+    expect(result.role).toBe('PLATE_OWNER');
   });
 });

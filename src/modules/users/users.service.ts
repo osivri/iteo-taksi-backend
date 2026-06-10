@@ -85,21 +85,22 @@ export class UsersService {
     if (this.supabase.hasServiceRole()) {
       const { data: authUser } = await this.supabase.admin.auth.admin.getUserById(user.id);
       const intended = authUser?.user?.user_metadata?.intended_role;
-      if (
-        typeof intended === 'string' &&
-        MEMBER_ONBOARDING_ROLES.includes(intended as MemberOnboardingRole)
-      ) {
-        return intended as MemberOnboardingRole;
+      if (typeof intended === 'string' && MEMBER_ONBOARDING_ROLES.includes(intended as MemberOnboardingRole)) {
+        return intended === 'USER' ? 'PLATE_OWNER' : (intended as MemberOnboardingRole);
       }
     }
 
-    return 'USER';
+    return 'PLATE_OWNER';
   }
 
   async completeOnboarding(user: AuthUser, dto: CompleteOnboardingDto) {
     const client = this.supabase.createUserClient(user.accessToken);
-    const role = await this.resolveOnboardingRole(user);
-    const status = role === 'USER' ? ('ACTIVE' as const) : ('PENDING_VERIFICATION' as const);
+    const resolved = await this.resolveOnboardingRole(user);
+    const role = resolved === 'USER' ? 'PLATE_OWNER' : resolved;
+    const status =
+      role === 'DRIVER' || role === 'PLATE_OWNER'
+        ? ('PENDING_VERIFICATION' as const)
+        : ('ACTIVE' as const);
     const payload = {
       first_name: dto.firstName,
       last_name: dto.lastName,

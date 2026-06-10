@@ -72,7 +72,7 @@ export class VehiclesController {
   @ApiOperation({ summary: 'Şoför plaka çalışma talebi oluştur' })
   async requestPlate(@CurrentUser() user: AuthUser, @Body() dto: RequestPlateDto) {
     const data = await this.vehiclesService.requestPlate(user, dto.plateNumber);
-    return { success: true, data, message: 'Onay talebi plaka sahibine iletildi' };
+    return { success: true, data, message: 'Onay talebi oda üyesine iletildi' };
   }
 
   @Post('plate-requests/by-vehicle')
@@ -82,7 +82,7 @@ export class VehiclesController {
     @Body() dto: RequestPlateByVehicleDto,
   ) {
     const data = await this.vehiclesService.requestPlateByVehicle(user, dto.vehicleId);
-    return { success: true, data, message: 'Başvurunuz plaka sahibine iletildi' };
+    return { success: true, data, message: 'Başvurunuz oda üyesine iletildi' };
   }
 
   @Post(':vehicleId/invite-driver')

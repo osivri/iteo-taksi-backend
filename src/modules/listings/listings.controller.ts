@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ListingsService } from './listings.service';
 import { SupabaseAuthGuard } from '../../common/guards/supabase-auth.guard';
@@ -40,5 +40,12 @@ export class ListingsController {
       query.neighborhood,
     );
     return { success: true, ...result };
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'İlan detayı' })
+  async getOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const data = await this.listingsService.getById(user, id);
+    return { success: true, data };
   }
 }

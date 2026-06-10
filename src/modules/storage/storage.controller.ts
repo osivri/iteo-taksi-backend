@@ -72,6 +72,14 @@ export class StorageController {
     return this.handleUpload(user, file, 'forgotten-items');
   }
 
+  @Post('listing-photos')
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'İlan fotoğrafı yükle' })
+  @UseInterceptors(uploadInterceptor(5 * 1024 * 1024))
+  async uploadListingPhoto(@CurrentUser() user: AuthUser, @UploadedFile() file: Express.Multer.File) {
+    return this.handleUpload(user, file, 'listing-photos');
+  }
+
   @Post('content-images')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
